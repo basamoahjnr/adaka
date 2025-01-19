@@ -190,7 +190,7 @@ feedback "ADAKA WireGuard clients network set to $WGEASY_NETWORK"
 ADAKA_PUBLIC_IP=$(curl -s ifconfig.me) || error_exit "Failed to retrieve public IP address."
 feedback "Public IP set to $ADAKA_PUBLIC_IP"
 
-WGEASY_NETWORK=$(convert_network_to_wgeasy_format $WGEASY_PASSWORD)
+WGEASY_NETWORK=$(convert_network_to_wgeasy_format "$WGEASY_NETWORK")
 feedback "WG-Easy network set to $WGEASY_NETWORK"
 
 
