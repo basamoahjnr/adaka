@@ -77,7 +77,7 @@ services:
       --upstream-dns={{UNBOUND_IPV4_ADDRESS}}
       --upstream-dns-no-fallback
     networks:
-      default:
+      private_network:
         ipv4_address: {{ADGUARD_IPV4_ADDRESS}}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
