@@ -35,6 +35,30 @@ convert_network_to_wgeasy_format() {
     echo "${ip_prefix}.x"
 }
 
+# Generate the Docker Compose file based on the DNS resolver
+configure_docker_compose() {
+  feedback "Configuring Docker Compose based on DNS resolver: $WGEASY_DNS"
+
+  if [ "$WGEASY_DNS" = "pihole" ]; then
+    feedback "Enabling Pi-hole in Docker Compose."
+    sed -e "/{{PIHOLE_SECTION}}/r .pihole.template" \
+        -e "/{{PIHOLE_SECTION}}/d" \
+        -e "/{{ADGUARD_SECTION}}/d" \
+        ".docker-compose.yml.template" > "$ADAKA_DIR/docker-compose.yml"
+  elif [ "$WGEASY_DNS" = "adguard" ]; then
+    feedback "Enabling AdGuardHome in Docker Compose."
+    sed -e "/{{ADGUARD_SECTION}}/r .adguard.template" \
+        -e "/{{ADGUARD_SECTION}}/d" \
+        -e "/{{PIHOLE_SECTION}}/d" \
+        ".docker-compose.yml.template" > "$ADAKA_DIR/docker-compose.yml"
+  else
+    error_exit "Invalid WGEASY_DNS value. Must be 'pihole' or 'adguard'."
+  fi
+
+  feedback "Docker Compose file successfully configured."
+}
+
+
 
 # Network utility for fetching with retries
 fetch_with_retry() {
@@ -188,13 +212,10 @@ feedback "ADAKA timezone set to $ADAKA_TZ"
 WGEASY_NETWORK="${WGEASY_NETWORK:-$WGEASY_DEFAULT_NETWORK}"
 feedback "ADAKA WireGuard clients network set to $WGEASY_NETWORK"
 
-WGEASY_DNS="${WGEASY_DNS:-$WGEASY_DEFAULT_DNS}"
-if [ "$WGEASY_DNS" = "pihole" ]; then
-  WGEASY_DNS="$PIHOLE_IPV4_ADDRESS"
-else
-  WGEASY_DNS="$ADGUARD_IPV4_ADDRESS"
+feedback "Validating DNS resolver selection"
+if [ "$WGEASY_DNS" != "pihole" ] && [ "$WGEASY_DNS" != "adguard" ]; then
+  error_exit "WGEASY_DNS must be set to either 'pihole' or 'adguard'."
 fi
-feedback "ADAKA WireGuard default dns set to $WGEASY_DNS"
 
 ADAKA_PUBLIC_IP=$(curl -s ifconfig.me) || error_exit "Failed to retrieve public IP address."
 feedback "Public IP set to $ADAKA_PUBLIC_IP"
@@ -246,34 +267,9 @@ feedback "Configuring Unbound from template"
 sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf" || error_exit "Failed to stop existing Docker containers."
 feedback "Unbound configuration file successfully created from template."
 
-feedback "Configuring Docker Compose from template"
-sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" \
-    -e "s|{{ADAKA_TZ}}|$ADAKA_TZ|g" \
-    -e "s|{{PUBLIC_IP}}|$ADAKA_PUBLIC_IP|g" \
-    -e "s|{{WGEASY_IMAGE}}|$WGEASY_IMAGE|g" \
-    -e "s|{{WGEASY_PASSWORD}}|$WGEASY_PASSWORD|g" \
-    -e "s|{{WGEASY_DIR}}|$WGEASY_DIR|g" \
-    -e "s|{{WGEASY_DNS}}|$WGEASY_DNS|g" \
-    -e "s|{{WGEASY_NETWORK}}|$WGEASY_NETWORK|g" \
-    -e "s|{{WGEASY_IPV4_ADDRESS}}|$WGEASY_IPV4_ADDRESS|g" \
-    -e "s|{{PIHOLE_IMAGE}}|$PIHOLE_IMAGE|g" \
-    -e "s|{{PIHOLE_WEBPASSWORD}}|$PIHOLE_WEBPASSWORD|g" \
-    -e "s|{{PIHOLE_DIR}}|$PIHOLE_DIR|g" \
-    -e "s|{{PIHOLE_IPV4_ADDRESS}}|$PIHOLE_IPV4_ADDRESS|g" \
-    -e "s|{{ADGUARD_IMAGE}}|$ADGUARD_IMAGE|g" \
-    -e "s|{{ADGUARD_WEBPASSWORD}}|$ADGUARD_WEBPASSWORD|g" \
-    -e "s|{{ADGUARD_DIR}}|$ADGUARD_DIR|g" \
-    -e "s|{{ADGUARD_IPV4_ADDRESS}}|$ADGUARD_IPV4_ADDRESS|g" \
-    -e "s|{{UNBOUND_IMAGE}}|$UNBOUND_IMAGE|g" \
-    -e "s|{{UNBOUND_DIR}}|$UNBOUND_DIR|g" \
-    -e "s|{{UNBOUND_IPV4_ADDRESS}}|$UNBOUND_IPV4_ADDRESS|g" \
-    -e "s|{{PORTAINER_WEBPASSWORD}}|$PORTAINER_WEBPASSWORD|g" \
-    -e "s|{{PORTAINER_IMAGE}}|$PORTAINER_IMAGE|g" \
-    -e "s|{{PORTAINER_DIR}}|$PORTAINER_DIR|g" \
-    -e "s|{{PORTAINER_IPV4_ADDRESS}}|$PORTAINER_IPV4_ADDRESS|g" \
-    ".docker-compose.yml.template" > "$ADAKA_DIR/docker-compose.yml" || error_exit "Failed to create Docker Compose file."
-feedback "Docker Compose file successfully created from template."
 
+# Configure the Docker Compose file
+configure_docker_compose
 
 docker compose -f "$ADAKA_DIR/docker-compose.yml" -p adaka down || error_exit "Failed to stop existing Docker containers."
 docker compose -f "$ADAKA_DIR/docker-compose.yml" -p adaka up -d || error_exit "Failed to start Docker Compose setup."
