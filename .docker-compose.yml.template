@@ -23,9 +23,6 @@ services:
     networks:
       private_network:
         ipv4_address: {{WGEASY_IPV4_ADDRESS}}
-    depends_on:
-      - unbound
-      - pihole
     healthcheck:
       test: ["CMD", "wg", "show"]
       interval: 30s
