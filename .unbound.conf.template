@@ -62,6 +62,7 @@ server:
     # Harden DNSSEC
     harden-dnssec-stripped: yes
     harden-glue: yes
+    harden-algo-downgrade: yes
 
     # Use DNSSEC trust anchor
     auto-trust-anchor-file: "var/root.key"
@@ -98,7 +99,7 @@ server:
     # The number of threads to create to serve clients.
     # This is set dynamically at run time to effectively use available CPUs
     # resources
-    #num-threads: 3
+    num-threads: 3
 
     # # Fetch the DNSKEYs earlier in the validation process, when a DS record
     # is encountered. This lowers the latency of requests at the expense of
@@ -109,6 +110,9 @@ server:
     # encountered. This lowers the latency of requests at the expense of little
     # more CPU usage.
     prefetch-key: yes
+
+    # Negative caching for failed lookups
+    neg-cache-size: 4M
 
     ###########################################################################
     # LOCAL ZONE
