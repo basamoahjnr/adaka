@@ -35,26 +35,6 @@ convert_network_to_wgeasy_format() {
     echo "${ip_prefix}.x"
 }
 
-# Generate the Docker Compose file based on the DNS resolver
-set_dns_reslover() {
-  if [ "$WGEASY_DNS" = "pihole" ]; then
-    feedback "Enabling Pi-hole in Docker Compose."
-    sed -e "/{{PIHOLE_SECTION}}/r .pihole.template" \
-        -e "/{{PIHOLE_SECTION}}/d" \
-        -e "/{{ADGUARD_SECTION}}/d" \
-        ".docker-compose.yml.template" > ".docker-compose.yml.template"
-  elif [ "$WGEASY_DNS" = "adguard" ]; then
-    feedback "Enabling AdGuardHome in Docker Compose."
-    sed -e "/{{ADGUARD_SECTION}}/r .adguard.template" \
-        -e "/{{ADGUARD_SECTION}}/d" \
-        -e "/{{PIHOLE_SECTION}}/d" \
-        ".docker-compose.yml.template" > ".docker-compose.yml.template"
-  else
-    error_exit "Invalid WGEASY_DNS value. Must be 'pihole' or 'adguard'."
-  fi
-}
-
-
 
 # Network utility for fetching with retries
 fetch_with_retry() {
@@ -213,6 +193,20 @@ if [ "$WGEASY_DNS" != "pihole" ] && [ "$WGEASY_DNS" != "adguard" ]; then
   error_exit "WGEASY_DNS must be set to either 'pihole' or 'adguard'."
 fi
 
+if [ "$WGEASY_DNS" = "pihole" ]; then
+    sed -e "/{{PIHOLE_SECTION}}/r .pihole.template" \
+        -e "/{{PIHOLE_SECTION}}/d" \
+        -e "/{{ADGUARD_SECTION}}/d" \
+        ".docker-compose.yml.template" >> ".docker-compose.yml.template"
+elif [ "$WGEASY_DNS" = "adguard" ]; then
+    feedback "Enabling AdGuardHome in Docker Compose."
+    sed -e "/{{ADGUARD_SECTION}}/r .adguard.template" \
+        -e "/{{ADGUARD_SECTION}}/d" \
+        -e "/{{PIHOLE_SECTION}}/d" \
+        ".docker-compose.yml.template" > ".docker-compose.yml.template"
+fi
+feedback "$WGEASY_DNS set as default dns resolver for WGEasy"
+
 ADAKA_PUBLIC_IP=$(curl -s ifconfig.me) || error_exit "Failed to retrieve public IP address."
 feedback "Public IP set to $ADAKA_PUBLIC_IP"
 
@@ -266,7 +260,6 @@ feedback "Unbound configuration file successfully created from template."
 
 # Configure the Docker Compose file
 feedback "Configuring Docker Compose from template"
-set_dns_reslover 
 sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" \
     -e "s|{{ADAKA_TZ}}|$ADAKA_TZ|g" \
     -e "s|{{PUBLIC_IP}}|$ADAKA_PUBLIC_IP|g" \
