@@ -36,26 +36,22 @@ convert_network_to_wgeasy_format() {
 }
 
 # Generate the Docker Compose file based on the DNS resolver
-configure_docker_compose() {
-  feedback "Configuring Docker Compose based on DNS resolver: $WGEASY_DNS"
-
+set_dns_reslover() {
   if [ "$WGEASY_DNS" = "pihole" ]; then
     feedback "Enabling Pi-hole in Docker Compose."
     sed -e "/{{PIHOLE_SECTION}}/r .pihole.template" \
         -e "/{{PIHOLE_SECTION}}/d" \
         -e "/{{ADGUARD_SECTION}}/d" \
-        ".docker-compose.yml.template" > "$ADAKA_DIR/docker-compose.yml"
+        ".docker-compose.yml.template" > ".docker-compose.yml.template"
   elif [ "$WGEASY_DNS" = "adguard" ]; then
     feedback "Enabling AdGuardHome in Docker Compose."
     sed -e "/{{ADGUARD_SECTION}}/r .adguard.template" \
         -e "/{{ADGUARD_SECTION}}/d" \
         -e "/{{PIHOLE_SECTION}}/d" \
-        ".docker-compose.yml.template" > "$ADAKA_DIR/docker-compose.yml"
+        ".docker-compose.yml.template" > ".docker-compose.yml.template"
   else
     error_exit "Invalid WGEASY_DNS value. Must be 'pihole' or 'adguard'."
   fi
-
-  feedback "Docker Compose file successfully configured."
 }
 
 
@@ -269,7 +265,35 @@ feedback "Unbound configuration file successfully created from template."
 
 
 # Configure the Docker Compose file
-configure_docker_compose
+feedback "Configuring Docker Compose from template"
+set_dns_reslover 
+sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" \
+    -e "s|{{ADAKA_TZ}}|$ADAKA_TZ|g" \
+    -e "s|{{PUBLIC_IP}}|$ADAKA_PUBLIC_IP|g" \
+    -e "s|{{WGEASY_IMAGE}}|$WGEASY_IMAGE|g" \
+    -e "s|{{WGEASY_PASSWORD}}|$WGEASY_PASSWORD|g" \
+    -e "s|{{WGEASY_DIR}}|$WGEASY_DIR|g" \
+    -e "s|{{WGEASY_DNS}}|$WGEASY_DNS|g" \
+    -e "s|{{WGEASY_NETWORK}}|$WGEASY_NETWORK|g" \
+    -e "s|{{WGEASY_IPV4_ADDRESS}}|$WGEASY_IPV4_ADDRESS|g" \
+    -e "s|{{PIHOLE_IMAGE}}|$PIHOLE_IMAGE|g" \
+    -e "s|{{PIHOLE_WEBPASSWORD}}|$PIHOLE_WEBPASSWORD|g" \
+    -e "s|{{PIHOLE_DIR}}|$PIHOLE_DIR|g" \
+    -e "s|{{PIHOLE_IPV4_ADDRESS}}|$PIHOLE_IPV4_ADDRESS|g" \
+    -e "s|{{ADGUARD_IMAGE}}|$ADGUARD_IMAGE|g" \
+    -e "s|{{ADGUARD_WEBPASSWORD}}|$ADGUARD_WEBPASSWORD|g" \
+    -e "s|{{ADGUARD_DIR}}|$ADGUARD_DIR|g" \
+    -e "s|{{ADGUARD_IPV4_ADDRESS}}|$ADGUARD_IPV4_ADDRESS|g" \
+    -e "s|{{UNBOUND_IMAGE}}|$UNBOUND_IMAGE|g" \
+    -e "s|{{UNBOUND_DIR}}|$UNBOUND_DIR|g" \
+    -e "s|{{UNBOUND_IPV4_ADDRESS}}|$UNBOUND_IPV4_ADDRESS|g" \
+    -e "s|{{PORTAINER_WEBPASSWORD}}|$PORTAINER_WEBPASSWORD|g" \
+    -e "s|{{PORTAINER_IMAGE}}|$PORTAINER_IMAGE|g" \
+    -e "s|{{PORTAINER_DIR}}|$PORTAINER_DIR|g" \
+    -e "s|{{PORTAINER_IPV4_ADDRESS}}|$PORTAINER_IPV4_ADDRESS|g" \
+    ".docker-compose.yml.template" > "$ADAKA_DIR/docker-compose.yml" || error_exit "Failed to create Docker Compose file."
+feedback "Docker Compose file successfully created from template."
+
 
 docker compose -f "$ADAKA_DIR/docker-compose.yml" -p adaka down || error_exit "Failed to stop existing Docker containers."
 docker compose -f "$ADAKA_DIR/docker-compose.yml" -p adaka up -d || error_exit "Failed to start Docker Compose setup."

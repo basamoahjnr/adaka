@@ -24,3 +24,5 @@
       test: ["CMD", "dig", "google.com"]
       interval: 30s
       retries: 3
+
+      
