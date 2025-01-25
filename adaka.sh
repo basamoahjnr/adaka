@@ -192,18 +192,20 @@ feedback "Validating DNS resolver selection"
 if [ "$WGEASY_DNS" != "pihole" ] && [ "$WGEASY_DNS" != "adguard" ]; then
   error_exit "WGEASY_DNS must be set to either 'pihole' or 'adguard'."
 fi
-
+# Setting appropirate Dns Resolver
 if [ "$WGEASY_DNS" = "pihole" ]; then
     sed -e "/{{PIHOLE_SECTION}}/r .pihole.template" \
         -e "/{{PIHOLE_SECTION}}/d" \
         -e "/{{ADGUARD_SECTION}}/d" \
-        ".docker-compose.yml.template" >> ".docker-compose.yml.template"
+        ".docker-compose.yml.template" > ".docker-compose.yml.tmp" && \
+    mv ".docker-compose.yml.tmp" ".docker-compose.yml.template"
 elif [ "$WGEASY_DNS" = "adguard" ]; then
     feedback "Enabling AdGuardHome in Docker Compose."
     sed -e "/{{ADGUARD_SECTION}}/r .adguard.template" \
         -e "/{{ADGUARD_SECTION}}/d" \
         -e "/{{PIHOLE_SECTION}}/d" \
-        ".docker-compose.yml.template" > ".docker-compose.yml.template"
+        ".docker-compose.yml.template" > ".docker-compose.yml.tmp" && \
+    mv ".docker-compose.yml.tmp" ".docker-compose.yml.template"
 fi
 feedback "$WGEASY_DNS set as default dns resolver for WGEasy"
 
