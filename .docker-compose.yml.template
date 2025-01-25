@@ -28,11 +28,8 @@ services:
       interval: 30s
       retries: 3
 
-
-{{PIHOLE_SECTION}}
-
+{{PIHOLE_SECTION}} 
 {{ADGUARD_SECTION}}
-
 
   unbound:
     image: {{UNBOUND_IMAGE}}
