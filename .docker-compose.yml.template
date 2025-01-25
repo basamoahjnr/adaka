@@ -38,7 +38,7 @@ services:
     environment:
       - WEBPASSWORD={{PIHOLE_WEBPASSWORD}}
       - TZ={{ADAKA_TZ}}
-      - PIHOLE_DNS_={{UNBOUND_IPV4_ADDRESS}}#5335 # Removed trailing semicolon
+      - PIHOLE_DNS_={{UNBOUND_IPV4_ADDRESS}}
       - WEBPORT=8083
     volumes:
       - {{PIHOLE_DIR}}/etc-pihole:/etc/pihole
@@ -63,15 +63,15 @@ services:
     container_name: adguardhome
     restart: unless-stopped
     ports:
-      - "53:53/tcp"    
-      - "53:53/udp"    
-      - "80:80"        
-      - "443:443"      
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "80:80"
+      - "443:443"
     volumes:
       - {{ADGUARD_DIR}}/work:/opt/adguardhome/work
       - {{ADGUARD_DIR}}/conf:/opt/adguardhome/conf
     environment:
-      - TZ={{ADAKA_TZ}} 
+      - TZ={{ADAKA_TZ}}
       - AGH_ADMIN_PASSWORD={{ADGUARD_WEBPASSWORD}}
     command: >
       --upstream-dns={{UNBOUND_IPV4_ADDRESS}}

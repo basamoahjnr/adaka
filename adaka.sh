@@ -243,8 +243,7 @@ feedback "DNSSEC root trust anchor fetched successfully."
 
 
 feedback "Configuring Unbound from template"
-awk -v adaka_network="$ADAKA_DEFAULT_NETWORK" \
-    '{gsub("{{ADAKA_DEFAULT_NETWORK}}", adaka_network); print}' ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf"
+sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf" || error_exit "Failed to stop existing Docker containers."
 feedback "Unbound configuration file successfully created from template."
 
 feedback "Configuring Docker Compose from template"

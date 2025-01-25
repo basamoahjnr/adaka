@@ -55,7 +55,7 @@ server:
     ###########################################################################
 
     # Only allow access from the local network and Pi-hole
-    access-control: {{ADAKA_DEFAULT_NETWORK}} allow
+    access-control: {{ADAKA_NETWORK}} allow
     access-control: 127.0.0.1/32 allow
 
 
