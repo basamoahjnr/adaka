@@ -268,7 +268,7 @@ sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" \
     -e "s|{{WGEASY_IMAGE}}|$WGEASY_IMAGE|g" \
     -e "s|{{WGEASY_PASSWORD}}|$WGEASY_PASSWORD|g" \
     -e "s|{{WGEASY_DIR}}|$WGEASY_DIR|g" \
-    -e "s|{{WGEASY_DNS}}|$WGEASY_DNS|g" \
+    -e "s|{{WGEASY_DNS}}|$(if [ "$WGEASY_DNS" = "pihole" ]; then echo $PIHOLE_IPV4_ADDRESS; else echo $ADGUARD_IPV4_ADDRESS; fi)|g" \
     -e "s|{{WGEASY_NETWORK}}|$WGEASY_NETWORK|g" \
     -e "s|{{WGEASY_IPV4_ADDRESS}}|$WGEASY_IPV4_ADDRESS|g" \
     -e "s|{{PIHOLE_IMAGE}}|$PIHOLE_IMAGE|g" \
@@ -293,7 +293,7 @@ feedback "Docker Compose file successfully created from template."
 docker compose -f "$ADAKA_DIR/docker-compose.yml" -p adaka down || error_exit "Failed to stop existing Docker containers."
 docker compose -f "$ADAKA_DIR/docker-compose.yml" -p adaka up -d || error_exit "Failed to start Docker Compose setup."
 
-feedback "Setup complete! Pi-hole, WireGuard, and Unbound are now running."
+feedback "Setup complete! $WGEASY_DNS, WireGuard, and Unbound are now running."
 echo -e "Pi-hole is running at: ${GREEN}http://$ADAKA_PUBLIC_IP:5353/admin${RESET} or ${GREEN}http://10.8.0.3:5353/admin${RESET}"
 echo -e "Wg-easy is running at: ${GREEN}http://$ADAKA_PUBLIC_IP:51821${RESET} or ${GREEN}http://10.8.0.2:51821${RESET}"
 echo -e "${RED}REMEMBER TO:${RESET} Configure Pi-hole to use 127.0.0.1#5335 as the Custom DNS."
