@@ -4,8 +4,8 @@
     restart: unless-stopped
     ports:
       - "3000:3000"
-      - "80:80"
-      - "443:443"
+      - "8083:80"
+      - "4443:443"
     volumes:
       - {{ADGUARD_DIR}}/work:/opt/adguardhome/work
       - {{ADGUARD_DIR}}/conf:/opt/adguardhome/conf
