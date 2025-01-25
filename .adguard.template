@@ -12,9 +12,6 @@
     environment:
       - TZ={{ADAKA_TZ}}
       - AGH_ADMIN_PASSWORD={{ADGUARD_WEBPASSWORD}}
-    command: >
-      --upstream-dns={{UNBOUND_IPV4_ADDRESS}}
-      --upstream-dns-no-fallback
     networks:
       private_network:
         ipv4_address: {{ADGUARD_IPV4_ADDRESS}}
