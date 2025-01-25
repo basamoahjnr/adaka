@@ -6,7 +6,7 @@ services:
     environment:
       - WG_HOST={{PUBLIC_IP}}
       - PASSWORD_HASH={{WGEASY_PASSWORD}}
-      - WG_DEFAULT_DNS=10.8.1.3
+      - WG_DEFAULT_DNS={{WGEASY_DNS}}
       - WG_DEFAULT_ADDRESS={{WGEASY_NETWORK}}
     volumes:
       - {{WGEASY_DIR}}:/etc/wireguard
@@ -22,7 +22,7 @@ services:
       - net.ipv4.conf.all.src_valid_mark=1
     networks:
       private_network:
-        ipv4_address: 10.8.1.2
+        ipv4_address: {{WGEASY_IPV4_ADDRESS}}
     depends_on:
       - unbound
       - pihole
@@ -38,7 +38,7 @@ services:
     environment:
       - WEBPASSWORD={{PIHOLE_WEBPASSWORD}}
       - TZ={{ADAKA_TZ}}
-      - PIHOLE_DNS_=10.8.1.4#5335 # Removed trailing semicolon
+      - PIHOLE_DNS_={{UNBOUND_IPV4_ADDRESS}}#5335 # Removed trailing semicolon
       - WEBPORT=8083
     volumes:
       - {{PIHOLE_DIR}}/etc-pihole:/etc/pihole
@@ -50,12 +50,39 @@ services:
       - NET_ADMIN
     networks:
       private_network:
-        ipv4_address: 10.8.1.3
+        ipv4_address: {{PIHOLE_IV4_ADDRESS}}
     depends_on:
       - unbound
     healthcheck:
       test: ["CMD", "dig", "google.com"]
       interval: 30s
+      retries: 3
+
+  adguardhome:
+    image: {{ADGUARD_IMAGE}}
+    container_name: adguardhome
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"    
+      - "53:53/udp"    
+      - "80:80"        
+      - "443:443"      
+    volumes:
+      - {{ADGUARD_DIR}}/work:/opt/adguardhome/work
+      - {{ADGUARD_DIR}}/conf:/opt/adguardhome/conf
+    environment:
+      - TZ={{ADAKA_TZ}} 
+      - AGH_ADMIN_PASSWORD={{ADGUARD_WEBPASSWORD}}
+    command: >
+      --upstream-dns={{UNBOUND_IPV4_ADDRESS}}
+      --upstream-dns-no-fallback
+    networks:
+      default:
+        ipv4_address: {{ADGUARD_IPV4_ADDRESS}}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
 
   unbound:
@@ -72,7 +99,7 @@ services:
       - NET_ADMIN
     networks:
       private_network:
-        ipv4_address: 10.8.1.4
+        ipv4_address: {{UNBOUND_IPV4_ADDRESS}}
     healthcheck:
       test: ["CMD", "unbound-control", "status"]
       interval: 30s
@@ -92,11 +119,11 @@ services:
     restart: unless-stopped
     networks:
       private_network:
-        ipv4_address: 10.8.1.5
+        ipv4_address: {{PORTAINER_IPV4_ADDRESS}}
 
 networks:
   private_network:
-    name: private_network
+    name: adaka
     ipam:
       driver: default
       config:

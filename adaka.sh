@@ -197,13 +197,18 @@ feedback "WG-Easy network set to $WGEASY_NETWORK"
 # Set Pi-hole password
 PIHOLE_WEBPASSWORD="${PIHOLE_WEBPASSWORD:-$ADAKA_PASSWORD}"
 PIHOLE_WEBPASSWORD=$(printf '%s\n' "$PIHOLE_WEBPASSWORD" | sed -e 's/[\/&]/\\&/g' -e 's/[][$^.*|{}]/\\&/g')
-feedback "No Pi-hole password set in config. Using universal password."
+feedback "pihole password set"
+
+# Set Adgurad password
+ADGUARD_WEBPASSWORD="${ADGUARD_WEBPASSWORD:-$ADAKA_PASSWORD}"
+ADGUARD_WEBPASSWORD=$(printf '%s\n' "$ADGUARD_WEBPASSWORD" | sed -e 's/[\/&]/\\&/g' -e 's/[][$^.*|{}]/\\&/g')
+feedback "Adgurad password set"
 
 
 # Set Portainer password
 PORTAINER_WEBPASSWORD="${PORTAINER_WEBPASSWORD:-$ADAKA_PASSWORD}"
 PORTAINER_WEBPASSWORD=$(printf '%s\n' "$PORTAINER_WEBPASSWORD" | sed -e 's/[\/&]/\\&/g' -e 's/[][$^.*|{}]/\\&/g')
-feedback "No Portainer password set in config. Using universal password."
+feedback "Portainer passwrod set"
 
 WGEASY_PASSWORD=$(generate_and_escape_bcrypt_hash "$ADAKA_PASSWORD") || error_exit "Failed to create WG-Easy password."
 feedback "WG-Easy password set successfully."
@@ -213,6 +218,7 @@ mkdir -p "$ADAKA_DIR" || error_exit "Failed to create ADAKA directory at $ADAKA_
 mkdir -p "$WGEASY_DIR" || error_exit "Failed to create WG-Easy directory at $WGEASY_DIR"
 mkdir -p "$PIHOLE_DIR/etc-pihole" || error_exit "Failed to create Pi-hole directory at $PIHOLE_DIR/etc-pihole"
 mkdir -p "$PIHOLE_DIR/etc-dnsmasq.d" || error_exit "Failed to create Pi-hole directory at $PIHOLE_DIR/etc-dnsmasq.d"
+mkdir -p "$ADGUARD_DIR" || error_exit "Failed to create AdGuard directory at $ADGUARD_DIR"
 mkdir -p "$UNBOUND_DIR" || error_exit "Failed to create Unbound directory at $UNBOUND_DIR"
 mkdir -p "$PORTAINER_DIR" || error_exit "Failed to create Portainer directory at $PORTAINER_DIR"
 feedback "Directories created successfully."
@@ -228,26 +234,35 @@ feedback "DNSSEC root trust anchor fetched successfully."
 
 
 feedback "Configuring Unbound from template"
-awk -v adaka_network="$ADAKA_DEFAULT_NETWORK" \
-    '{gsub("{{ADAKA_DEFAULT_NETWORK}}", adaka_network); print}' ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf"
+awk -v adaka_network="$ADAKA_NETWORK" \
+    '{gsub("{{ADAKA_NETWORK}}", adaka_network); print}' ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf"
 feedback "Unbound configuration file successfully created from template."
 
 feedback "Configuring Docker Compose from template"
 sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" \
+    -e "s|{{ADAKA_TZ}}|$ADAKA_TZ|g" \
     -e "s|{{PUBLIC_IP}}|$ADAKA_PUBLIC_IP|g" \
     -e "s|{{WGEASY_IMAGE}}|$WGEASY_IMAGE|g" \
     -e "s|{{WGEASY_PASSWORD}}|$WGEASY_PASSWORD|g" \
     -e "s|{{WGEASY_DIR}}|$WGEASY_DIR|g" \
+    -e "s|{{WGEASY_DNS}}|$WGEASY_DNS|g" \
     -e "s|{{WGEASY_NETWORK}}|$WGEASY_NETWORK|g" \
+    -e "s|{{WGEASY_IPV4_ADDRESS}}|$WGEASY_IPV4_ADDRESS|g" \
     -e "s|{{PIHOLE_IMAGE}}|$PIHOLE_IMAGE|g" \
     -e "s|{{PIHOLE_WEBPASSWORD}}|$PIHOLE_WEBPASSWORD|g" \
     -e "s|{{PIHOLE_DIR}}|$PIHOLE_DIR|g" \
-    -e "s|{{ADAKA_TZ}}|$ADAKA_TZ|g" \
+    -e "s|{{PIHOLE_IPV4_ADDRESS}}|$PIHOLE_IPV4_ADDRESS|g" \
+    -e "s|{{ADGUARD_IMAGE}}|$ADGUARD_IMAGE|g" \
+    -e "s|{{ADGUARD_WEBPASSWORD}}|$ADGUARD_WEBPASSWORD|g" \
+    -e "s|{{ADGUARD_DIR}}|$ADGUARD_DIR|g" \
+    -e "s|{{ADGUARD_IPV4_ADDRESS}}|$ADGUARD_IPV4_ADDRESS|g" \
     -e "s|{{UNBOUND_IMAGE}}|$UNBOUND_IMAGE|g" \
     -e "s|{{UNBOUND_DIR}}|$UNBOUND_DIR|g" \
+    -e "s|{{UNBOUND_IPV4_ADDRESS}}|$UNBOUND_IPV4_ADDRESS|g" \
     -e "s|{{PORTAINER_WEBPASSWORD}}|$PORTAINER_WEBPASSWORD|g" \
     -e "s|{{PORTAINER_IMAGE}}|$PORTAINER_IMAGE|g" \
     -e "s|{{PORTAINER_DIR}}|$PORTAINER_DIR|g" \
+    -e "s|{{PORTAINER_IPV4_ADDRESS}}|$PORTAINER_IPV4_ADDRESS|g" \
     ".docker-compose.yml.template" > "$ADAKA_DIR/docker-compose.yml" || error_exit "Failed to create Docker Compose file."
 feedback "Docker Compose file successfully created from template."
 
