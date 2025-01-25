@@ -31,59 +31,9 @@ services:
       interval: 30s
       retries: 3
 
-  pihole:
-    image: {{PIHOLE_IMAGE}}
-    container_name: pihole
-    hostname: pihole
-    environment:
-      - WEBPASSWORD={{PIHOLE_WEBPASSWORD}}
-      - TZ={{ADAKA_TZ}}
-      - PIHOLE_DNS_={{UNBOUND_IPV4_ADDRESS}}
-      - WEBPORT=8083
-    volumes:
-      - {{PIHOLE_DIR}}/etc-pihole:/etc/pihole
-      - {{PIHOLE_DIR}}/etc-dnsmasq.d:/etc/dnsmasq.d
-    ports:
-      - 8083:80/tcp
-    restart: unless-stopped
-    cap_add:
-      - NET_ADMIN
-    networks:
-      private_network:
-        ipv4_address: {{PIHOLE_IPV4_ADDRESS}}
-    depends_on:
-      - unbound
-    healthcheck:
-      test: ["CMD", "dig", "google.com"]
-      interval: 30s
-      retries: 3
+{{PIHOLE_SECTION}}
 
-  adguardhome:
-    image: {{ADGUARD_IMAGE}}
-    container_name: adguardhome
-    restart: unless-stopped
-    ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "80:80"
-      - "443:443"
-    volumes:
-      - {{ADGUARD_DIR}}/work:/opt/adguardhome/work
-      - {{ADGUARD_DIR}}/conf:/opt/adguardhome/conf
-    environment:
-      - TZ={{ADAKA_TZ}}
-      - AGH_ADMIN_PASSWORD={{ADGUARD_WEBPASSWORD}}
-    command: >
-      --upstream-dns={{UNBOUND_IPV4_ADDRESS}}
-      --upstream-dns-no-fallback
-    networks:
-      private_network:
-        ipv4_address: {{ADGUARD_IPV4_ADDRESS}}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+{{ADGUARD_SECTION}}
 
   unbound:
     image: {{UNBOUND_IMAGE}}
