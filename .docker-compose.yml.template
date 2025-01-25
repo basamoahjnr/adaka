@@ -50,7 +50,7 @@ services:
       - NET_ADMIN
     networks:
       private_network:
-        ipv4_address: {{PIHOLE_IV4_ADDRESS}}
+        ipv4_address: {{PIHOLE_IPV4_ADDRESS}}
     depends_on:
       - unbound
     healthcheck:
@@ -123,7 +123,7 @@ services:
 
 networks:
   private_network:
-    name: adaka
+    name: private_network
     ipam:
       driver: default
       config:

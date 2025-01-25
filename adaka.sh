@@ -150,11 +150,13 @@ generate_and_escape_bcrypt_hash() {
 
 # Options parsing
 ADAKA_PASSWORD="" # Initialize the variable
-while getopts 'p:' OPTION; do
+WGEASY_DNS="" # Initialize the variable
+while getopts 'p:n:' OPTION; do
   case "$OPTION" in
     p) ADAKA_PASSWORD="$OPTARG" ;;
+    n) WGEASY_DNS="$OPTARG" ;;
     \?)
-      echo "Usage: $(basename "$0") -p password" >&2
+      echo "Usage: $(basename "$0") -p password -n [pihole|adguard]" >&2
       exit 1
       ;;
   esac
@@ -168,7 +170,6 @@ if [ -z "$ADAKA_PASSWORD" ]; then
   echo "Usage: $(basename "$0") -p password" >&2
   exit 1
 fi
-
 
 feedback "Validating IPs and subnets"
 [[ -n "$ADAKA_NETWORK" ]] && validate_subnet "$ADAKA_NETWORK"
@@ -186,6 +187,14 @@ feedback "ADAKA timezone set to $ADAKA_TZ"
 
 WGEASY_NETWORK="${WGEASY_NETWORK:-$WGEASY_DEFAULT_NETWORK}"
 feedback "ADAKA WireGuard clients network set to $WGEASY_NETWORK"
+
+WGEASY_DNS="${WGEASY_DNS:-$WGEASY_DEFAULT_DNS}"
+if [ "$WGEASY_DNS" = "pihole" ]; then
+  WGEASY_DNS="$PIHOLE_IPV4_ADDRESS"
+else
+  WGEASY_DNS="$ADGUARD_IPV4_ADDRESS"
+fi
+feedback "ADAKA WireGuard default dns set to $WGEASY_DNS"
 
 ADAKA_PUBLIC_IP=$(curl -s ifconfig.me) || error_exit "Failed to retrieve public IP address."
 feedback "Public IP set to $ADAKA_PUBLIC_IP"
@@ -234,8 +243,8 @@ feedback "DNSSEC root trust anchor fetched successfully."
 
 
 feedback "Configuring Unbound from template"
-awk -v adaka_network="$ADAKA_NETWORK" \
-    '{gsub("{{ADAKA_NETWORK}}", adaka_network); print}' ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf"
+awk -v adaka_network="$ADAKA_DEFAULT_NETWORK" \
+    '{gsub("{{ADAKA_DEFAULT_NETWORK}}", adaka_network); print}' ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf"
 feedback "Unbound configuration file successfully created from template."
 
 feedback "Configuring Docker Compose from template"
