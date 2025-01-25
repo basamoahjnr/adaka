@@ -150,11 +150,13 @@ generate_and_escape_bcrypt_hash() {
 
 # Options parsing
 ADAKA_PASSWORD="" # Initialize the variable
-while getopts 'p:' OPTION; do
+WGEASY_DNS="" # Initialize the variable
+while getopts 'p:n:' OPTION; do
   case "$OPTION" in
     p) ADAKA_PASSWORD="$OPTARG" ;;
+    n) WGEASY_DNS="$OPTARG" ;;
     \?)
-      echo "Usage: $(basename "$0") -p password" >&2
+      echo "Usage: $(basename "$0") -p password -n [pihole|adguard]" >&2
       exit 1
       ;;
   esac
@@ -168,7 +170,6 @@ if [ -z "$ADAKA_PASSWORD" ]; then
   echo "Usage: $(basename "$0") -p password" >&2
   exit 1
 fi
-
 
 feedback "Validating IPs and subnets"
 [[ -n "$ADAKA_NETWORK" ]] && validate_subnet "$ADAKA_NETWORK"
@@ -187,6 +188,27 @@ feedback "ADAKA timezone set to $ADAKA_TZ"
 WGEASY_NETWORK="${WGEASY_NETWORK:-$WGEASY_DEFAULT_NETWORK}"
 feedback "ADAKA WireGuard clients network set to $WGEASY_NETWORK"
 
+feedback "Validating DNS resolver selection"
+if [ "$WGEASY_DNS" != "pihole" ] && [ "$WGEASY_DNS" != "adguard" ]; then
+  error_exit "WGEASY_DNS must be set to either 'pihole' or 'adguard'."
+fi
+# Setting appropirate Dns Resolver
+if [ "$WGEASY_DNS" = "pihole" ]; then
+    sed -e "/{{PIHOLE_SECTION}}/r .pihole.template" \
+        -e "/{{PIHOLE_SECTION}}/d" \
+        -e "/{{ADGUARD_SECTION}}/d" \
+        ".docker-compose.yml.template" > ".docker-compose.yml.tmp" && \
+    mv ".docker-compose.yml.tmp" ".docker-compose.yml.template"
+elif [ "$WGEASY_DNS" = "adguard" ]; then
+    feedback "Enabling AdGuardHome in Docker Compose."
+    sed -e "/{{ADGUARD_SECTION}}/r .adguard.template" \
+        -e "/{{ADGUARD_SECTION}}/d" \
+        -e "/{{PIHOLE_SECTION}}/d" \
+        ".docker-compose.yml.template" > ".docker-compose.yml.tmp" && \
+    mv ".docker-compose.yml.tmp" ".docker-compose.yml.template"
+fi
+feedback "$WGEASY_DNS set as default dns resolver for WGEasy"
+
 ADAKA_PUBLIC_IP=$(curl -s ifconfig.me) || error_exit "Failed to retrieve public IP address."
 feedback "Public IP set to $ADAKA_PUBLIC_IP"
 
@@ -197,13 +219,18 @@ feedback "WG-Easy network set to $WGEASY_NETWORK"
 # Set Pi-hole password
 PIHOLE_WEBPASSWORD="${PIHOLE_WEBPASSWORD:-$ADAKA_PASSWORD}"
 PIHOLE_WEBPASSWORD=$(printf '%s\n' "$PIHOLE_WEBPASSWORD" | sed -e 's/[\/&]/\\&/g' -e 's/[][$^.*|{}]/\\&/g')
-feedback "No Pi-hole password set in config. Using universal password."
+feedback "pihole password set"
+
+# Set Adgurad password
+ADGUARD_WEBPASSWORD="${ADGUARD_WEBPASSWORD:-$ADAKA_PASSWORD}"
+ADGUARD_WEBPASSWORD=$(printf '%s\n' "$ADGUARD_WEBPASSWORD" | sed -e 's/[\/&]/\\&/g' -e 's/[][$^.*|{}]/\\&/g')
+feedback "Adgurad password set"
 
 
 # Set Portainer password
 PORTAINER_WEBPASSWORD="${PORTAINER_WEBPASSWORD:-$ADAKA_PASSWORD}"
 PORTAINER_WEBPASSWORD=$(printf '%s\n' "$PORTAINER_WEBPASSWORD" | sed -e 's/[\/&]/\\&/g' -e 's/[][$^.*|{}]/\\&/g')
-feedback "No Portainer password set in config. Using universal password."
+feedback "Portainer passwrod set"
 
 WGEASY_PASSWORD=$(generate_and_escape_bcrypt_hash "$ADAKA_PASSWORD") || error_exit "Failed to create WG-Easy password."
 feedback "WG-Easy password set successfully."
@@ -213,6 +240,7 @@ mkdir -p "$ADAKA_DIR" || error_exit "Failed to create ADAKA directory at $ADAKA_
 mkdir -p "$WGEASY_DIR" || error_exit "Failed to create WG-Easy directory at $WGEASY_DIR"
 mkdir -p "$PIHOLE_DIR/etc-pihole" || error_exit "Failed to create Pi-hole directory at $PIHOLE_DIR/etc-pihole"
 mkdir -p "$PIHOLE_DIR/etc-dnsmasq.d" || error_exit "Failed to create Pi-hole directory at $PIHOLE_DIR/etc-dnsmasq.d"
+mkdir -p "$ADGUARD_DIR" || error_exit "Failed to create AdGuard directory at $ADGUARD_DIR"
 mkdir -p "$UNBOUND_DIR" || error_exit "Failed to create Unbound directory at $UNBOUND_DIR"
 mkdir -p "$PORTAINER_DIR" || error_exit "Failed to create Portainer directory at $PORTAINER_DIR"
 feedback "Directories created successfully."
@@ -228,26 +256,36 @@ feedback "DNSSEC root trust anchor fetched successfully."
 
 
 feedback "Configuring Unbound from template"
-awk -v adaka_network="$ADAKA_DEFAULT_NETWORK" \
-    '{gsub("{{ADAKA_DEFAULT_NETWORK}}", adaka_network); print}' ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf"
+sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf" || error_exit "Failed to stop existing Docker containers."
 feedback "Unbound configuration file successfully created from template."
 
+
+# Configure the Docker Compose file
 feedback "Configuring Docker Compose from template"
 sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" \
+    -e "s|{{ADAKA_TZ}}|$ADAKA_TZ|g" \
     -e "s|{{PUBLIC_IP}}|$ADAKA_PUBLIC_IP|g" \
     -e "s|{{WGEASY_IMAGE}}|$WGEASY_IMAGE|g" \
     -e "s|{{WGEASY_PASSWORD}}|$WGEASY_PASSWORD|g" \
     -e "s|{{WGEASY_DIR}}|$WGEASY_DIR|g" \
+    -e "s|{{WGEASY_DNS}}|$(if [ "$WGEASY_DNS" = "pihole" ]; then echo $PIHOLE_IPV4_ADDRESS; else echo $ADGUARD_IPV4_ADDRESS; fi)|g" \
     -e "s|{{WGEASY_NETWORK}}|$WGEASY_NETWORK|g" \
+    -e "s|{{WGEASY_IPV4_ADDRESS}}|$WGEASY_IPV4_ADDRESS|g" \
     -e "s|{{PIHOLE_IMAGE}}|$PIHOLE_IMAGE|g" \
     -e "s|{{PIHOLE_WEBPASSWORD}}|$PIHOLE_WEBPASSWORD|g" \
     -e "s|{{PIHOLE_DIR}}|$PIHOLE_DIR|g" \
-    -e "s|{{ADAKA_TZ}}|$ADAKA_TZ|g" \
+    -e "s|{{PIHOLE_IPV4_ADDRESS}}|$PIHOLE_IPV4_ADDRESS|g" \
+    -e "s|{{ADGUARD_IMAGE}}|$ADGUARD_IMAGE|g" \
+    -e "s|{{ADGUARD_WEBPASSWORD}}|$ADGUARD_WEBPASSWORD|g" \
+    -e "s|{{ADGUARD_DIR}}|$ADGUARD_DIR|g" \
+    -e "s|{{ADGUARD_IPV4_ADDRESS}}|$ADGUARD_IPV4_ADDRESS|g" \
     -e "s|{{UNBOUND_IMAGE}}|$UNBOUND_IMAGE|g" \
     -e "s|{{UNBOUND_DIR}}|$UNBOUND_DIR|g" \
+    -e "s|{{UNBOUND_IPV4_ADDRESS}}|$UNBOUND_IPV4_ADDRESS|g" \
     -e "s|{{PORTAINER_WEBPASSWORD}}|$PORTAINER_WEBPASSWORD|g" \
     -e "s|{{PORTAINER_IMAGE}}|$PORTAINER_IMAGE|g" \
     -e "s|{{PORTAINER_DIR}}|$PORTAINER_DIR|g" \
+    -e "s|{{PORTAINER_IPV4_ADDRESS}}|$PORTAINER_IPV4_ADDRESS|g" \
     ".docker-compose.yml.template" > "$ADAKA_DIR/docker-compose.yml" || error_exit "Failed to create Docker Compose file."
 feedback "Docker Compose file successfully created from template."
 
@@ -255,7 +293,7 @@ feedback "Docker Compose file successfully created from template."
 docker compose -f "$ADAKA_DIR/docker-compose.yml" -p adaka down || error_exit "Failed to stop existing Docker containers."
 docker compose -f "$ADAKA_DIR/docker-compose.yml" -p adaka up -d || error_exit "Failed to start Docker Compose setup."
 
-feedback "Setup complete! Pi-hole, WireGuard, and Unbound are now running."
+feedback "Setup complete! $WGEASY_DNS, WireGuard, and Unbound are now running."
 echo -e "Pi-hole is running at: ${GREEN}http://$ADAKA_PUBLIC_IP:5353/admin${RESET} or ${GREEN}http://10.8.0.3:5353/admin${RESET}"
 echo -e "Wg-easy is running at: ${GREEN}http://$ADAKA_PUBLIC_IP:51821${RESET} or ${GREEN}http://10.8.0.2:51821${RESET}"
 echo -e "${RED}REMEMBER TO:${RESET} Configure Pi-hole to use 127.0.0.1#5335 as the Custom DNS."

@@ -6,7 +6,7 @@ services:
     environment:
       - WG_HOST={{PUBLIC_IP}}
       - PASSWORD_HASH={{WGEASY_PASSWORD}}
-      - WG_DEFAULT_DNS=10.8.1.3
+      - WG_DEFAULT_DNS={{WGEASY_DNS}}
       - WG_DEFAULT_ADDRESS={{WGEASY_NETWORK}}
     volumes:
       - {{WGEASY_DIR}}:/etc/wireguard
@@ -22,41 +22,14 @@ services:
       - net.ipv4.conf.all.src_valid_mark=1
     networks:
       private_network:
-        ipv4_address: 10.8.1.2
-    depends_on:
-      - unbound
-      - pihole
+        ipv4_address: {{WGEASY_IPV4_ADDRESS}}
     healthcheck:
       test: ["CMD", "wg", "show"]
       interval: 30s
       retries: 3
 
-  pihole:
-    image: {{PIHOLE_IMAGE}}
-    container_name: pihole
-    hostname: pihole
-    environment:
-      - WEBPASSWORD={{PIHOLE_WEBPASSWORD}}
-      - TZ={{ADAKA_TZ}}
-      - PIHOLE_DNS_=10.8.1.4#5335 # Removed trailing semicolon
-      - WEBPORT=8083
-    volumes:
-      - {{PIHOLE_DIR}}/etc-pihole:/etc/pihole
-      - {{PIHOLE_DIR}}/etc-dnsmasq.d:/etc/dnsmasq.d
-    ports:
-      - 8083:80/tcp
-    restart: unless-stopped
-    cap_add:
-      - NET_ADMIN
-    networks:
-      private_network:
-        ipv4_address: 10.8.1.3
-    depends_on:
-      - unbound
-    healthcheck:
-      test: ["CMD", "dig", "google.com"]
-      interval: 30s
-      retries: 3
+{{PIHOLE_SECTION}} 
+{{ADGUARD_SECTION}}
 
   unbound:
     image: {{UNBOUND_IMAGE}}
@@ -72,7 +45,7 @@ services:
       - NET_ADMIN
     networks:
       private_network:
-        ipv4_address: 10.8.1.4
+        ipv4_address: {{UNBOUND_IPV4_ADDRESS}}
     healthcheck:
       test: ["CMD", "unbound-control", "status"]
       interval: 30s
@@ -86,13 +59,13 @@ services:
       - ADMIN_PASSWORD={{PORTAINER_WEBPASSWORD}}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - {{PORTAINER_DIR}}:/data
+      - {{PORTAINER_DIR}}/data:/data
     ports:
       - 9000:9000
     restart: unless-stopped
     networks:
       private_network:
-        ipv4_address: 10.8.1.5
+        ipv4_address: {{PORTAINER_IPV4_ADDRESS}}
 
 networks:
   private_network:
