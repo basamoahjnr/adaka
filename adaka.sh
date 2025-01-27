@@ -210,7 +210,7 @@ generate_compose_config() {
 
     # Substitute all variables
     sed -i.bak \
-        -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" \
+        -e "s|{{ADAKA_NETWORK}}|$ADAKA_DEFAULT_NETWORK|g" \
         -e "s|{{ADAKA_TZ}}|$ADAKA_TZ|g" \
         -e "s|{{PUBLIC_IP}}|$ADAKA_PUBLIC_IP|g" \
         -e "s|{{WGEASY_IMAGE}}|$WGEASY_IMAGE|g" \
