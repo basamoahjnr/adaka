@@ -50,7 +50,7 @@ validate_subnet() {
 # Convert CIDR to WireGuard format (xxx.xxx.xxx.x)
 convert_wg_network() {
     local network="$1"
-    if [[ "$network" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+/[0-9]+$ ]]; then
+    if [[ "$network" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.0/[0-9]{1,2}$ ]]; then
         echo "${BASH_REMATCH[1]}.x"
     else
         error_exit "Network conversion failed: $network"
