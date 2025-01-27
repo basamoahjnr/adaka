@@ -155,7 +155,7 @@ configure_unbound() {
         error_exit "Unbound template file missing"
     fi
 
-    sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_NETWORK|g" \
+    sed -e "s|{{ADAKA_NETWORK}}|$ADAKA_DEFAULT_NETWORK|g" \
         ".unbound.conf.template" > "$UNBOUND_DIR/unbound.conf" \
         || error_exit "Unbound configuration failed"
     
