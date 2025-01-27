@@ -13,7 +13,7 @@
       - TZ={{ADAKA_TZ}}
       - AGH_ADMIN_PASSWORD={{ADGUARD_WEBPASSWORD}}
     networks:
-      private_network:
+      adaka_network:
         ipv4_address: {{ADGUARD_IPV4_ADDRESS}}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]

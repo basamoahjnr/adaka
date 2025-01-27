@@ -16,7 +16,7 @@
     cap_add:
       - NET_ADMIN
     networks:
-      private_network:
+      adaka_network:
         ipv4_address: {{PIHOLE_IPV4_ADDRESS}}
     depends_on:
       - unbound
