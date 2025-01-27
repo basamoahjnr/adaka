@@ -18,10 +18,10 @@ services:
       - NET_ADMIN
       - SYS_MODULE
     sysctls:
-      - net.ipv4.ip_forward=1
-      - net.ipv4.conf.all.src_valid_mark=1
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.src_valid_mark: 1
     networks:
-      private_network:
+      adaka_network:
         ipv4_address: {{WGEASY_IPV4_ADDRESS}}
     healthcheck:
       test: ["CMD", "wg", "show"]
@@ -44,7 +44,7 @@ services:
     cap_add:
       - NET_ADMIN
     networks:
-      private_network:
+      adaka_network:
         ipv4_address: {{UNBOUND_IPV4_ADDRESS}}
     healthcheck:
       test: ["CMD", "unbound-control", "status"]
@@ -64,13 +64,17 @@ services:
       - 9000:9000
     restart: unless-stopped
     networks:
-      private_network:
+      adaka_network:
         ipv4_address: {{PORTAINER_IPV4_ADDRESS}}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
-  private_network:
-    name: private_network
+  adaka_network:
+    name: adaka_network
     ipam:
-      driver: default
       config:
         - subnet: {{ADAKA_NETWORK}}
