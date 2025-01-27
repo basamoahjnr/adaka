@@ -263,14 +263,10 @@ shift "$((OPTIND-1))"
 
 # Set derived values
 ADAKA_PUBLIC_IP=$(curl -4 -s ifconfig.me) || error_exit "Failed to get public IP"
-WGEASY_NETWORK=$(convert_wg_network "$WGEASY_NETWORK") || exit 1
+WGEASY_NETWORK=$(convert_wg_network "$WGEASY_DEFAULT_NETWORK") || exit 1
 
 # Install dependencies
 install_dependencies
-
-# Validate network configurations
-validate_subnet "$ADAKA_NETWORK"
-validate_subnet "$WGEASY_NETWORK"
 
 # Set up directory structure
 setup_directories
