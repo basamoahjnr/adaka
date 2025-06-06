@@ -1,0 +1,30 @@
+  pihole:
+    image: {{PIHOLE_IMAGE}}
+    container_name: pihole
+    hostname: pihole
+    environment:
+      - FTLCONF_webserver_api_password={{PIHOLE_WEBPASSWORD}}
+      - TZ={{ADAKA_DEFAULT_TZ}}
+      - PIHOLE_DNS_={{UNBOUND_IPV4_ADDRESS}}
+      - WEBPORT=8083
+      - FTLCONF_dns_upstreams={{UNBOUND_IPV4_ADDRESS}}#5335
+    volumes:
+      - {{PIHOLE_DIR}}/etc-pihole:/etc/pihole
+      - {{PIHOLE_DIR}}/etc-dnsmasq.d:/etc/dnsmasq.d
+    ports:
+      - 8083:80/tcp
+      - 4443:443/tcp
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    networks:
+      adaka_network:
+        ipv4_address: {{PIHOLE_IPV4_ADDRESS}}
+    depends_on:
+      - unbound
+    healthcheck:
+      test: ["CMD", "dig", "google.com"]
+      interval: 30s
+      retries: 3
+
+      

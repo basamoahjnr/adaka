@@ -1,0 +1,131 @@
+server:
+    ###########################################################################
+    # BASIC SETTINGS
+    ###########################################################################
+
+    # Set the working directory for the program.
+    directory: "/opt/unbound/etc/unbound"
+
+    # RFC 6891. Number of bytes size to advertise as the EDNS reassembly buffer
+    edns-buffer-size: 1472
+
+    # Listen to all interfaces on port 5335 for Pi-hole queries
+    interface: 0.0.0.0@5335
+
+    # Drop user privileges after binding the port.
+    username: ""
+
+    ###########################################################################
+    # LOGGING SETTINGS
+    ###########################################################################
+
+    # Print one line per query to the log
+    log-queries: yes
+
+    # Print one line per reply to the log
+    log-replies: no
+
+    # Set log verbosity to show query details
+    verbosity: 0
+
+    # Do not print log lines that say why queries return SERVFAIL to clients
+    log-servfail: no
+
+    # Log to stdout
+    logfile: ""
+
+    ###########################################################################
+    # PRIVACY SETTINGS
+    ###########################################################################
+
+    # Use the DNSSEC NSEC chain to synthesize NXDOMAIN
+    aggressive-nsec: yes
+
+    # Prevent unbound from running as a daemon
+    do-daemonize: no
+
+    # Send minimal information to upstream servers for privacy
+    qname-minimisation: yes
+
+    # Number  of  bytes size of the aggressive negative cache.
+    neg-cache-size: 4M
+
+    ###########################################################################
+    # SECURITY SETTINGS
+    ###########################################################################
+
+    # Only allow access from the local network and Pi-hole
+    access-control: {{ADAKA_NETWORK}} allow
+    access-control: 127.0.0.1/32 allow
+
+
+    # Harden DNSSEC
+    harden-dnssec-stripped: yes
+    harden-glue: yes
+    harden-algo-downgrade: yes
+
+    # Use DNSSEC trust anchor
+    auto-trust-anchor-file: "root.key"
+
+    # answers. Additionally, the DNSSEC validator may mark the  answers  bogus.
+    # This  protects  against DNS  Rebinding
+    private-address: 10.0.0.0/8
+    private-address: 172.16.0.0/12
+    private-address: 192.168.0.0/16
+    private-address: 169.254.0.0/16
+    private-address: fd00::/8
+    private-address: fe80::/10
+    private-address: ::ffff:0:0/96
+
+    # Use this certificate bundle for authenticating connections made to
+    # outside peers (e.g., auth-zone urls, DNS over TLS connections).
+    tls-cert-bundle: /etc/ssl/certs/ca-certificates.crt
+
+
+    ###########################################################################
+    # PERFORMANCE SETTINGS
+    ###########################################################################
+
+    # Cache size settings
+    msg-cache-size: 50M
+    rrset-cache-size: 100M
+
+    # Number of queries per thread
+    num-queries-per-thread: 4096
+
+    # Serve expired cache responses while refreshing in background
+    serve-expired: yes
+
+    # The number of threads to create to serve clients.
+    # This is set dynamically at run time to effectively use available CPUs
+    # resources
+    num-threads: 3
+
+    # # Fetch the DNSKEYs earlier in the validation process, when a DS record
+    # is encountered. This lowers the latency of requests at the expense of
+    # little more CPU usage.
+    prefetch: yes
+
+    # Fetch the DNSKEYs earlier in the validation process, when a DS record is
+    # encountered. This lowers the latency of requests at the expense of little
+    # more CPU usage.
+    prefetch-key: yes
+
+    # Negative caching for failed lookups
+    neg-cache-size: 4M
+
+    # Fix tcp with pihole issue
+    # incoming-num-tcp: 100
+
+    ###########################################################################
+    # LOCAL ZONE
+    ###########################################################################
+
+    # Define any local zones or specific DNS entries
+    # Example:
+    # local-zone: "example.local." static
+    # local-data: "myhost.example.local. IN A 10.8.1.5"
+
+remote-control:
+    # Disable remote control
+    control-enable: no

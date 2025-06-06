@@ -1,0 +1,79 @@
+services:
+  wg-easy:
+    image: {{WGEASY_IMAGE}}
+    container_name: wg-easy
+    hostname: wg-easy
+    environment:
+      - WG_HOST={{PUBLIC_IP}}
+      - PASSWORD_HASH={{WGEASY_PASSWORD}}
+      - WG_DEFAULT_DNS={{WGEASY_DNS}}
+      - WG_DEFAULT_ADDRESS={{WGEASY_NETWORK}}
+    volumes:
+      - {{WGEASY_DIR}}:/etc/wireguard:rw
+    ports:
+      - 51820:51820/udp
+      - 51821:51821/tcp
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.src_valid_mark: 1
+    networks:
+      adaka_network:
+        ipv4_address: {{WGEASY_IPV4_ADDRESS}}
+    healthcheck:
+      test: ["CMD", "wg", "show"]
+      interval: 30s
+      retries: 3
+
+{{DNS_SECTION}}
+
+  unbound:
+    image: {{UNBOUND_IMAGE}}
+    container_name: unbound
+    hostname: unbound
+    restart: unless-stopped
+    volumes:
+      - {{UNBOUND_DIR}}:/opt/unbound/etc/unbound/
+    ports:
+      - 5335:5335/tcp
+      - 5335:5335/udp
+    cap_add:
+      - NET_ADMIN
+    networks:
+      adaka_network:
+        ipv4_address: {{UNBOUND_IPV4_ADDRESS}}
+    healthcheck:
+      test: ["CMD", "unbound-control", "status"]
+      interval: 30s
+      retries: 3
+
+  portainer:
+    image: {{PORTAINER_IMAGE}}
+    container_name: portainer
+    command: -H unix:///var/run/docker.sock
+    environment:
+      - ADMIN_PASSWORD={{PORTAINER_WEBPASSWORD}}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - {{PORTAINER_DIR}}/data:/data
+    ports:
+      - 9000:9000
+    restart: unless-stopped
+    networks:
+      adaka_network:
+        ipv4_address: {{PORTAINER_IPV4_ADDRESS}}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  adaka_network:
+    name: adaka_network
+    ipam:
+      config:
+        - subnet: {{ADAKA_NETWORK}}
