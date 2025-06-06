@@ -114,7 +114,7 @@ server:
     # Negative caching for failed lookups
     neg-cache-size: 4M
 
-    # Fix tcp with pihole issue
+    # Fix tcp with pihole issue.
     # incoming-num-tcp: 100
 
     ###########################################################################
