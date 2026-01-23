@@ -1,23 +1,26 @@
   adguardhome:
     image: {{ADGUARD_IMAGE}}
     container_name: adguardhome
+    hostname: adguardhome
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:3000"  # Initial setup wizard only
       - "8083:80"
       - "4443:443"
     volumes:
       - {{ADGUARD_DIR}}/work:/opt/adguardhome/work
       - {{ADGUARD_DIR}}/conf:/opt/adguardhome/conf
     environment:
-      - TZ={{ADAKA_TZ}}
-      - AGH_ADMIN_PASSWORD={{ADGUARD_WEBPASSWORD}}
+      - TZ={{ADAKA_DEFAULT_TZ}}
+      # Note: AdGuard password must be set during initial setup at http://<IP>:3000
+      # Configure upstream DNS to {{UNBOUND_IPV4_ADDRESS}}:5335 during setup
     networks:
       adaka_network:
         ipv4_address: {{ADGUARD_IPV4_ADDRESS}}
+    depends_on:
+      - unbound
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/control/status"]
       interval: 30s
       timeout: 10s
       retries: 3
-

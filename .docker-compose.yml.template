@@ -10,6 +10,7 @@ services:
       - WG_DEFAULT_ADDRESS={{WGEASY_NETWORK}}
     volumes:
       - {{WGEASY_DIR}}:/etc/wireguard:rw
+      - /lib/modules:/lib/modules:ro
     ports:
       - 51820:51820/udp
       - 51821:51821/tcp
@@ -46,16 +47,16 @@ services:
       adaka_network:
         ipv4_address: {{UNBOUND_IPV4_ADDRESS}}
     healthcheck:
-      test: ["CMD", "unbound-control", "status"]
+      test: ["CMD", "drill", "@127.0.0.1", "-p", "5335", "cloudflare.com"]
       interval: 30s
+      timeout: 10s
       retries: 3
 
   portainer:
     image: {{PORTAINER_IMAGE}}
     container_name: portainer
+    hostname: portainer
     command: -H unix:///var/run/docker.sock
-    environment:
-      - ADMIN_PASSWORD={{PORTAINER_WEBPASSWORD}}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - {{PORTAINER_DIR}}/data:/data
