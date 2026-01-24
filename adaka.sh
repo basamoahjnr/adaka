@@ -270,7 +270,7 @@ setup_directories() {
         if [[ ! -d "$dir" ]]; then
             mkdir -p "$dir" || error_exit "Failed to create $dir" "Check permissions on parent directory"
             chmod 700 "$dir"
-            ((created++))
+            ((++created)) || true
         fi
     done
     
@@ -308,7 +308,7 @@ fetch_with_retry() {
         if curl -sSf --max-time 15 -o "$output" "$url" 2>/dev/null; then
             return 0
         fi
-        ((attempt++))
+        ((++attempt)) || true
         [[ $attempt -lt $max_retries ]] && sleep 2
     done
 
@@ -362,7 +362,7 @@ run_docker_with_retry() {
         if docker run --rm -v "$volume" "$image" sh -c "$command" 2>/dev/null; then
             return 0
         fi
-        ((attempt++))
+        ((++attempt)) || true
         [[ $attempt -lt $max_retries ]] && sleep 2
     done
 
