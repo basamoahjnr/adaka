@@ -53,7 +53,7 @@ print_banner() {
 
 # Print step header with progress
 step() {
-    ((CURRENT_STEP++))
+    ((++CURRENT_STEP)) || true
     local description="$1"
     echo ""
     echo -e "${BOLD}${CYAN}[$CURRENT_STEP/$TOTAL_STEPS]${RESET} ${BOLD}$description${RESET}"
