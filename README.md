@@ -8,12 +8,12 @@ ADAKA
 
 ## Features
 
-- 🔐 **WireGuard VPN** - Fast, modern VPN with easy client management via web UI
-- 🛡️ **DNS Blocking** - Choose between Pi-hole or AdGuard Home for ad/tracker blocking
-- 🔒 **DNSSEC** - Cryptographically verified DNS responses via Unbound
-- 📊 **Portainer** - Docker management dashboard
-- 🚀 **One-command setup** - Automated installation with progress feedback
-- 🌐 **Cross-distro support** - Works on Debian/Ubuntu, Fedora/RHEL, Arch Linux
+- **WireGuard VPN** - Fast, modern VPN with easy client management via web UI
+- **DNS Blocking** - Choose between Pi-hole or AdGuard Home for ad/tracker blocking
+- **DNSSEC** - Cryptographically verified DNS responses via Unbound
+- **Portainer** - Docker management dashboard
+- **One-command setup** - Automated installation with progress feedback
+- **Cross-distro support** - Works on Debian/Ubuntu, Fedora/RHEL, Arch Linux
 
 ## Quick Start
 

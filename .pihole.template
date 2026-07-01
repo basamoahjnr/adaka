@@ -3,7 +3,7 @@
     container_name: pihole
     hostname: pihole
     environment:
-      - FTLCONF_webserver_api_password={{PIHOLE_WEBPASSWORD}}
+      - "FTLCONF_webserver_api_password={{PIHOLE_WEBPASSWORD}}"
       - TZ={{ADAKA_DEFAULT_TZ}}
       - FTLCONF_dns_upstreams={{UNBOUND_IPV4_ADDRESS}}#5335
       - FTLCONF_dns_listeningMode=all

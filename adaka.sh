@@ -62,22 +62,22 @@ step() {
 
 # Print success checkmark
 success() {
-    echo -e "  ${GREEN}✓${RESET} $1"
+    echo -e "  ${GREEN}${RESET} $1"
 }
 
 # Print info message
 info() {
-    echo -e "  ${CYAN}ℹ${RESET} $1"
+    echo -e "  ${CYAN}${RESET} $1"
 }
 
 # Print warning message
 warn() {
-    echo -e "  ${YELLOW}⚠${RESET} $1"
+    echo -e "  ${YELLOW}${RESET} $1"
 }
 
 # Exit with error message and suggestions
 error_exit() {
-    echo -e "\n  ${RED}✗ Error: $1${RESET}" >&2
+    echo -e "\n  ${RED}${RESET} Error: $1" >&2
     if [[ -n "${2:-}" ]]; then
         echo -e "  ${DIM}Suggestion: $2${RESET}" >&2
     fi
@@ -293,8 +293,17 @@ generate_bcrypt_hash() {
     
     # Use environment variable to avoid command injection
     docker run --rm -e "HASH_PASSWORD=$password" python:3-alpine sh -c \
-        'pip install -q bcrypt 2>/dev/null && python3 -c "import os,bcrypt; print(bcrypt.hashpw(os.environ[\"HASH_PASSWORD\"].encode(), bcrypt.gensalt()).decode())"' \
-        | sed 's/\$/\$\$/g'  # Escape $ for docker-compose
+        'pip install -q bcrypt 2>/dev/null && python3 -c "import os,bcrypt; print(bcrypt.hashpw(os.environ[\"HASH_PASSWORD\"].encode(), bcrypt.gensalt()).decode())"'
+}
+
+# Escape a value for safe embedding in a double-quoted YAML env string,
+# and double any '$' so docker compose doesn't treat it as variable interpolation.
+escape_for_compose_env() {
+    local input="$1"
+    input="${input//\\/\\\\}"
+    input="${input//\"/\\\"}"
+    input="${input//\$/\$\$}"
+    printf '%s' "$input"
 }
 
 # Retry wrapper for network operations
@@ -394,19 +403,18 @@ generate_compose_config() {
         "$template" > "$ADAKA_DIR/docker-compose.yml.tmp" \
         || error_exit "Template processing failed" "Check template syntax"
 
-    # Substitute all variables
+    # Substitute all non-sensitive variables (paths, images, IPs come from
+    # trusted config, so using '|' as the sed delimiter is safe for them)
     sed -i.bak \
         -e "s|{{ADAKA_NETWORK}}|$ADAKA_DEFAULT_NETWORK|g" \
         -e "s|{{ADAKA_DEFAULT_TZ}}|$ADAKA_DEFAULT_TZ|g" \
         -e "s|{{PUBLIC_IP}}|$ADAKA_PUBLIC_IP|g" \
         -e "s|{{WGEASY_IMAGE}}|$WGEASY_IMAGE|g" \
-        -e "s|{{WGEASY_PASSWORD}}|$WGEASY_PASSWORD|g" \
         -e "s|{{WGEASY_DIR}}|$WGEASY_DIR|g" \
         -e "s|{{WGEASY_DNS}}|$dns_ip|g" \
         -e "s|{{WGEASY_NETWORK}}|$WGEASY_NETWORK|g" \
         -e "s|{{WGEASY_IPV4_ADDRESS}}|$WGEASY_IPV4_ADDRESS|g" \
         -e "s|{{PIHOLE_IMAGE}}|$PIHOLE_IMAGE|g" \
-        -e "s|{{PIHOLE_WEBPASSWORD}}|$PIHOLE_WEBPASSWORD|g" \
         -e "s|{{PIHOLE_DIR}}|$PIHOLE_DIR|g" \
         -e "s|{{PIHOLE_IPV4_ADDRESS}}|$PIHOLE_IPV4_ADDRESS|g" \
         -e "s|{{ADGUARD_IMAGE}}|$ADGUARD_IMAGE|g" \
@@ -420,6 +428,16 @@ generate_compose_config() {
         -e "s|{{PORTAINER_IPV4_ADDRESS}}|$PORTAINER_IPV4_ADDRESS|g" \
         "$ADAKA_DIR/docker-compose.yml.tmp" \
         || error_exit "Variable substitution failed" "Check template syntax"
+
+    # Substitute password placeholders via pure bash string replacement
+    # (not sed) so arbitrary user-supplied password characters -- '|', '&',
+    # '/', etc. -- can never collide with sed delimiters or replacement
+    # metacharacters.
+    local compose_content
+    compose_content="$(cat "$ADAKA_DIR/docker-compose.yml.tmp")"
+    compose_content="${compose_content//\{\{WGEASY_PASSWORD\}\}/$WGEASY_PASSWORD}"
+    compose_content="${compose_content//\{\{PIHOLE_WEBPASSWORD\}\}/$PIHOLE_WEBPASSWORD}"
+    printf '%s\n' "$compose_content" > "$ADAKA_DIR/docker-compose.yml.tmp"
 
     # Finalize configuration
     mv "$ADAKA_DIR/docker-compose.yml.tmp" "$ADAKA_DIR/docker-compose.yml" \
@@ -457,6 +475,9 @@ while getopts 'p:n:h' opt; do
 done
 shift "$((OPTIND-1))"
 
+# Apply default DNS blocker when -n was not provided
+WGEASY_DNS="${WGEASY_DNS:-$WGEASY_DEFAULT_DNS}"
+
 # Validate mandatory parameters
 [[ -z "${ADAKA_PASSWORD:-}" ]] && error_exit "Password required (-p)" "Example: $0 -p 'MySecurePassword123'"
 [[ "$WGEASY_DNS" =~ ^(pihole|adguard)$ ]] || error_exit "Invalid DNS option: $WGEASY_DNS" "Use 'pihole' or 'adguard'"
@@ -476,8 +497,9 @@ step "Detecting Network Configuration"
 # ─────────────────────────────────────────────────────────────────────────────
 
 info "Fetching public IP address"
-ADAKA_PUBLIC_IP=$(curl -4 -s --max-time 10 --retry 3 ifconfig.me)
-[[ -z "$ADAKA_PUBLIC_IP" ]] && error_exit "Failed to get public IP" "Check your internet connection"
+ADAKA_PUBLIC_IP=$(curl -4 -sf --max-time 10 --retry 3 ifconfig.me || true)
+[[ "$ADAKA_PUBLIC_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+    || error_exit "Failed to get public IP" "Check your internet connection"
 success "Public IP: $ADAKA_PUBLIC_IP"
 
 WGEASY_NETWORK=$(convert_wg_network "$WGEASY_DEFAULT_NETWORK") || exit 1
@@ -510,16 +532,10 @@ step "Generating Service Credentials"
 # ─────────────────────────────────────────────────────────────────────────────
 
 info "Hashing password for WireGuard"
-WGEASY_PASSWORD=$(generate_bcrypt_hash "$ADAKA_PASSWORD")
+WGEASY_PASSWORD=$(escape_for_compose_env "$(generate_bcrypt_hash "$ADAKA_PASSWORD")")
 success "WireGuard password hash generated"
 
-# Escape password for safe YAML embedding (handles all special chars)
-escape_for_yaml() {
-    local input="$1"
-    printf '%s' "$input" | sed -e 's/\\/\\\\/g' -e 's/|/\\|/g' -e 's/&/\\\&/g' -e 's/#/\\#/g' -e "s/'/\\'/g" -e 's/"/\\"/g'
-}
-
-PIHOLE_WEBPASSWORD=$(escape_for_yaml "$ADAKA_PASSWORD")
+PIHOLE_WEBPASSWORD=$(escape_for_compose_env "$ADAKA_PASSWORD")
 success "Pi-hole credentials configured"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -541,6 +557,11 @@ success "Environment cleaned"
 # ─────────────────────────────────────────────────────────────────────────────
 step "Launching Services"
 # ─────────────────────────────────────────────────────────────────────────────
+
+info "Pulling latest images"
+docker compose -f "$ADAKA_DIR/docker-compose.yml" -p adaka pull \
+    || error_exit "Failed to pull images" "Check your internet connection"
+success "Images up to date"
 
 info "Starting containers (this may take a few minutes on first run)"
 echo ""

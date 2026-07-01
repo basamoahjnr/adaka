@@ -5,7 +5,7 @@ services:
     hostname: wg-easy
     environment:
       - WG_HOST={{PUBLIC_IP}}
-      - PASSWORD_HASH={{WGEASY_PASSWORD}}
+      - "PASSWORD_HASH={{WGEASY_PASSWORD}}"
       - WG_DEFAULT_DNS={{WGEASY_DNS}}
       - WG_DEFAULT_ADDRESS={{WGEASY_NETWORK}}
     volumes:
