@@ -8,6 +8,7 @@ PIHOLE_IMAGE="pihole/pihole:latest"
 UNBOUND_IMAGE="mvance/unbound:1.22.0"
 PORTAINER_IMAGE="portainer/portainer-ce:latest"
 ADGUARD_IMAGE="adguard/adguardhome:latest"
+FAIL2BAN_IMAGE="lscr.io/linuxserver/fail2ban:latest"
 
 # Directory paths
 ADAKA_DIR="$HOME/.adaka"
@@ -16,6 +17,7 @@ PIHOLE_DIR="$ADAKA_DIR/pihole"
 ADGUARD_DIR="$ADAKA_DIR/adguard"
 UNBOUND_DIR="$ADAKA_DIR/unbound"
 PORTAINER_DIR="$ADAKA_DIR/portainer"
+FAIL2BAN_DIR="$ADAKA_DIR/fail2ban"
 
 # Network configuration
 # Note: Ensure these don't conflict with your local network

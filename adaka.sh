@@ -27,7 +27,7 @@ RESET="\033[0m"
 
 # Progress tracking
 CURRENT_STEP=0
-TOTAL_STEPS=9
+TOTAL_STEPS=10
 
 # =============================================================================
 # UI Helper Functions
@@ -193,6 +193,33 @@ detect_os() {
     fi
 }
 
+# Refresh package index and upgrade installed packages before installing anything else
+update_system() {
+    detect_os
+
+    info "Refreshing package index"
+    case "$PKG_MANAGER" in
+        apt)
+            sudo apt-get update -qq \
+                || error_exit "Failed to refresh package index" "Check network connectivity and /etc/apt/sources.list"
+            info "Upgrading installed packages"
+            sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq \
+                || error_exit "Failed to upgrade system packages" "Try 'sudo apt-get upgrade' manually"
+            ;;
+        dnf|yum)
+            info "Upgrading installed packages"
+            sudo "$PKG_MANAGER" upgrade -y -q \
+                || error_exit "Failed to upgrade system packages" "Try 'sudo $PKG_MANAGER upgrade' manually"
+            ;;
+        pacman)
+            info "Upgrading installed packages"
+            sudo pacman -Syu --noconfirm --quiet \
+                || error_exit "Failed to upgrade system packages" "Try 'sudo pacman -Syu' manually"
+            ;;
+    esac
+    success "System packages up to date"
+}
+
 # Convert CIDR to WireGuard format (xxx.xxx.xxx.x)
 convert_wg_network() {
     local network="$1"
@@ -254,51 +281,25 @@ install_dependencies() {
     fi
 }
 
-# Install and configure fail2ban to block brute-force/bot login attempts against SSH
-install_fail2ban() {
-    if ! command -v fail2ban-client &> /dev/null; then
-        warn "fail2ban not found - installing"
-
-        case "$PKG_MANAGER" in
-            apt)
-                sudo apt-get update -qq
-                sudo apt-get install -y -qq fail2ban \
-                    || error_exit "Failed to install fail2ban" "Try 'sudo apt-get update && sudo apt-get install fail2ban' manually"
-                ;;
-            dnf|yum)
-                sudo "$PKG_MANAGER" install -y -q fail2ban \
-                    || error_exit "Failed to install fail2ban" "Try 'sudo $PKG_MANAGER install fail2ban' manually"
-                ;;
-            pacman)
-                sudo pacman -Sy --noconfirm --quiet fail2ban \
-                    || error_exit "Failed to install fail2ban" "Try 'sudo pacman -Sy fail2ban' manually"
-                ;;
-        esac
-        success "fail2ban installed"
-    fi
-
+# Render the fail2ban sshd jail config that ships in $FAIL2BAN_DIR/jail.d,
+# picked up by the fail2ban container (linuxserver/fail2ban) on start.
+# Running fail2ban as a container avoids depending on the host's own
+# package repos (which can be unavailable, e.g. on an EOL OS release).
+configure_fail2ban_jail() {
     local jail_template="$SCRIPT_DIR/.fail2ban-jail.local.template"
     [[ -f "$jail_template" ]] || error_exit "fail2ban jail template missing" "Ensure $jail_template exists"
 
     info "Configuring fail2ban SSH jail"
-    local jail_tmp
-    jail_tmp="$(mktemp)"
+    mkdir -p "$FAIL2BAN_DIR/jail.d" || error_exit "Failed to create $FAIL2BAN_DIR/jail.d"
+
     sed -e "s|{{FAIL2BAN_BANTIME}}|$FAIL2BAN_BANTIME|g" \
         -e "s|{{FAIL2BAN_FINDTIME}}|$FAIL2BAN_FINDTIME|g" \
         -e "s|{{FAIL2BAN_MAXRETRY}}|$FAIL2BAN_MAXRETRY|g" \
         -e "s|{{WGEASY_DEFAULT_NETWORK}}|$WGEASY_DEFAULT_NETWORK|g" \
-        "$jail_template" > "$jail_tmp" \
+        "$jail_template" > "$FAIL2BAN_DIR/jail.d/sshd.local" \
         || error_exit "fail2ban jail configuration failed" "Check template syntax"
 
-    sudo install -m 644 -o root -g root "$jail_tmp" /etc/fail2ban/jail.local \
-        || error_exit "Failed to install fail2ban jail config" "Check sudo permissions"
-    rm -f "$jail_tmp"
-
-    sudo systemctl enable fail2ban &> /dev/null || true
-    sudo systemctl restart fail2ban \
-        || error_exit "Failed to start fail2ban" "Check 'systemctl status fail2ban'"
-
-    success "fail2ban SSH protection active"
+    success "fail2ban SSH jail configured (bantime=$FAIL2BAN_BANTIME, maxretry=$FAIL2BAN_MAXRETRY)"
 }
 
 # Create directory structure with secure permissions
@@ -311,6 +312,7 @@ setup_directories() {
         "$ADGUARD_DIR/conf"
         "$UNBOUND_DIR"
         "$PORTAINER_DIR/data"
+        "$FAIL2BAN_DIR/jail.d"
     )
     
     local created=0
@@ -474,6 +476,8 @@ generate_compose_config() {
         -e "s|{{PORTAINER_IMAGE}}|$PORTAINER_IMAGE|g" \
         -e "s|{{PORTAINER_DIR}}|$PORTAINER_DIR|g" \
         -e "s|{{PORTAINER_IPV4_ADDRESS}}|$PORTAINER_IPV4_ADDRESS|g" \
+        -e "s|{{FAIL2BAN_IMAGE}}|$FAIL2BAN_IMAGE|g" \
+        -e "s|{{FAIL2BAN_DIR}}|$FAIL2BAN_DIR|g" \
         "$ADAKA_DIR/docker-compose.yml.tmp" \
         || error_exit "Variable substitution failed" "Check template syntax"
 
@@ -541,6 +545,12 @@ validate_subnet "$WGEASY_DEFAULT_NETWORK"
 print_summary
 
 # ─────────────────────────────────────────────────────────────────────────────
+step "Updating System Packages"
+# ─────────────────────────────────────────────────────────────────────────────
+
+update_system
+
+# ─────────────────────────────────────────────────────────────────────────────
 step "Detecting Network Configuration"
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -562,18 +572,17 @@ success "Docker is available"
 success "Docker Compose is available"
 
 # ─────────────────────────────────────────────────────────────────────────────
-step "Hardening SSH Security"
-# ─────────────────────────────────────────────────────────────────────────────
-
-install_fail2ban
-success "fail2ban configured (bantime=$FAIL2BAN_BANTIME, maxretry=$FAIL2BAN_MAXRETRY)"
-
-# ─────────────────────────────────────────────────────────────────────────────
 step "Creating Directory Structure"
 # ─────────────────────────────────────────────────────────────────────────────
 
 setup_directories
 success "All directories created with secure permissions"
+
+# ─────────────────────────────────────────────────────────────────────────────
+step "Hardening SSH Security"
+# ─────────────────────────────────────────────────────────────────────────────
+
+configure_fail2ban_jail
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Configuring Unbound DNS Resolver"
