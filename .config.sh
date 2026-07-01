@@ -3,12 +3,13 @@
 # =============================================================================
 
 # Docker Images (using latest tags - consider pinning for production)
-WGEASY_IMAGE="ghcr.io/wg-easy/wg-easy:latest"
+WGEASY_IMAGE="ghcr.io/wg-easy/wg-easy:15"
 PIHOLE_IMAGE="pihole/pihole:latest"
 UNBOUND_IMAGE="mvance/unbound:1.22.0"
 PORTAINER_IMAGE="portainer/portainer-ce:latest"
 ADGUARD_IMAGE="adguard/adguardhome:latest"
 FAIL2BAN_IMAGE="lscr.io/linuxserver/fail2ban:latest"
+CADDY_IMAGE="caddy:2.10.0-alpine"
 
 # Directory paths
 ADAKA_DIR="$HOME/.adaka"
@@ -18,6 +19,7 @@ ADGUARD_DIR="$ADAKA_DIR/adguard"
 UNBOUND_DIR="$ADAKA_DIR/unbound"
 PORTAINER_DIR="$ADAKA_DIR/portainer"
 FAIL2BAN_DIR="$ADAKA_DIR/fail2ban"
+CADDY_DIR="$ADAKA_DIR/caddy"
 
 # Network configuration
 # Note: Ensure these don't conflict with your local network
@@ -42,6 +44,7 @@ PIHOLE_IPV4_ADDRESS="10.8.1.3"
 ADGUARD_IPV4_ADDRESS="10.8.1.4"
 UNBOUND_IPV4_ADDRESS="10.8.1.5"
 PORTAINER_IPV4_ADDRESS="10.8.1.6"
+CADDY_IPV4_ADDRESS="10.8.1.7"
 
 # =============================================================================
 # Note: The following are set via CLI arguments and cannot be configured here:

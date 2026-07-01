@@ -144,13 +144,13 @@ print_success() {
 
     echo -e "${BOLD}Service URLs:${RESET}"
     echo -e "${DIM}$(printf '─%.0s' {1..40})${RESET}"
-    echo -e "  ${CYAN}WireGuard VPN${RESET}    http://${GREEN}$public_ip:51821${RESET}"
+    echo -e "  ${CYAN}WireGuard VPN${RESET}    https://${GREEN}$public_ip:51821${RESET} ${DIM}(self-signed cert)${RESET}"
     echo -e "  ${CYAN}${dns_choice^} DNS${RESET}     http://${GREEN}$public_ip:8083/admin${RESET}"
     echo -e "  ${CYAN}Portainer${RESET}        http://${GREEN}$public_ip:9000${RESET}"
     echo ""
     echo -e "${BOLD}Quick Start:${RESET}"
     echo -e "${DIM}$(printf '─%.0s' {1..40})${RESET}"
-    echo -e "  1. Open WireGuard admin at ${GREEN}http://$public_ip:51821${RESET}"
+    echo -e "  1. Open WireGuard admin at ${GREEN}https://$public_ip:51821${RESET}"
     echo -e "  2. Create a new VPN client"
     echo -e "  3. Scan QR code with WireGuard mobile app"
     echo ""
@@ -229,16 +229,6 @@ update_system() {
     success "System packages up to date"
 }
 
-# Convert CIDR to WireGuard format (xxx.xxx.xxx.x)
-convert_wg_network() {
-    local network="$1"
-    if [[ "$network" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.0/[0-9]{1,2}$ ]]; then
-        echo "${BASH_REMATCH[1]}.x"
-    else
-        error_exit "Network conversion failed: $network"
-    fi
-}
-
 # Install Docker and Compose if missing
 install_dependencies() {
     detect_os
@@ -314,6 +304,22 @@ configure_fail2ban_jail() {
     success "fail2ban SSH jail configured (bantime=$FAIL2BAN_BANTIME, maxretry=$FAIL2BAN_MAXRETRY)"
 }
 
+# Install the Caddyfile that terminates TLS (self-signed, no domain needed)
+# in front of wg-easy's admin UI. wg-easy v15 refuses admin login over plain
+# HTTP, and the only alternative is INSECURE=true, which sends the admin
+# password in cleartext -- unacceptable on a public IP.
+configure_caddy() {
+    local caddy_template="$SCRIPT_DIR/.caddyfile.template"
+    [[ -f "$caddy_template" ]] || error_exit "Caddyfile template missing" "Ensure $caddy_template exists"
+
+    info "Configuring Caddy reverse proxy for wg-easy"
+    sed -e "s|{{PUBLIC_IP}}|$ADAKA_PUBLIC_IP|g" \
+        "$caddy_template" > "$CADDY_DIR/Caddyfile" \
+        || error_exit "Caddyfile configuration failed" "Check permissions on $CADDY_DIR"
+
+    success "Caddy configured with self-signed TLS"
+}
+
 # Create directory structure with secure permissions
 setup_directories() {
     local dirs=(
@@ -325,6 +331,8 @@ setup_directories() {
         "$UNBOUND_DIR"
         "$PORTAINER_DIR/data"
         "$FAIL2BAN_DIR/fail2ban/jail.d"
+        "$CADDY_DIR/config"
+        "$CADDY_DIR/data"
     )
     
     local created=0
@@ -341,21 +349,6 @@ setup_directories() {
     else
         info "All directories already exist"
     fi
-}
-
-# Generate bcrypt hash for WG-Easy password
-generate_bcrypt_hash() {
-    local password="$1"
-    
-    # Pull image if not present (avoid pulling every time)
-    if ! docker image inspect python:3-alpine &> /dev/null; then
-        info "Pulling Python image for password hashing"
-        docker pull -q python:3-alpine || error_exit "Failed to pull python:3-alpine" "Check your internet connection"
-    fi
-    
-    # Use environment variable to avoid command injection
-    docker run --rm -e "HASH_PASSWORD=$password" python:3-alpine sh -c \
-        'pip install -q bcrypt 2>/dev/null && python3 -c "import os,bcrypt; print(bcrypt.hashpw(os.environ[\"HASH_PASSWORD\"].encode(), bcrypt.gensalt()).decode())"'
 }
 
 # Escape a value for safe embedding in a double-quoted YAML env string,
@@ -490,6 +483,9 @@ generate_compose_config() {
         -e "s|{{PORTAINER_IPV4_ADDRESS}}|$PORTAINER_IPV4_ADDRESS|g" \
         -e "s|{{FAIL2BAN_IMAGE}}|$FAIL2BAN_IMAGE|g" \
         -e "s|{{FAIL2BAN_DIR}}|$FAIL2BAN_DIR|g" \
+        -e "s|{{CADDY_IMAGE}}|$CADDY_IMAGE|g" \
+        -e "s|{{CADDY_DIR}}|$CADDY_DIR|g" \
+        -e "s|{{CADDY_IPV4_ADDRESS}}|$CADDY_IPV4_ADDRESS|g" \
         "$ADAKA_DIR/docker-compose.yml.tmp" \
         || error_exit "Variable substitution failed" "Check template syntax"
 
@@ -572,7 +568,7 @@ ADAKA_PUBLIC_IP=$(curl -4 -sf --max-time 10 --retry 3 ifconfig.me || true)
     || error_exit "Failed to get public IP" "Check your internet connection"
 success "Public IP: $ADAKA_PUBLIC_IP"
 
-WGEASY_NETWORK=$(convert_wg_network "$WGEASY_DEFAULT_NETWORK") || exit 1
+WGEASY_NETWORK="$WGEASY_DEFAULT_NETWORK"
 success "WireGuard network configured"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -595,6 +591,7 @@ step "Hardening SSH Security"
 # ─────────────────────────────────────────────────────────────────────────────
 
 configure_fail2ban_jail
+configure_caddy
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Configuring Unbound DNS Resolver"
@@ -607,9 +604,8 @@ success "Unbound configured with DNSSEC enabled"
 step "Generating Service Credentials"
 # ─────────────────────────────────────────────────────────────────────────────
 
-info "Hashing password for WireGuard"
-WGEASY_PASSWORD=$(escape_for_compose_env "$(generate_bcrypt_hash "$ADAKA_PASSWORD")")
-success "WireGuard password hash generated"
+WGEASY_PASSWORD=$(escape_for_compose_env "$ADAKA_PASSWORD")
+success "WireGuard credentials configured"
 
 PIHOLE_WEBPASSWORD=$(escape_for_compose_env "$ADAKA_PASSWORD")
 success "Pi-hole credentials configured"

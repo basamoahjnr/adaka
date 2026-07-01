@@ -1,0 +1,12 @@
+{
+	# Clients connecting via bare IP (not a hostname) are not required by
+	# RFC 6066 to send an SNI extension, so Caddy's SNI-based cert lookup
+	# finds nothing and rejects the handshake. default_sni tells it which
+	# certificate to serve when the ClientHello has no SNI.
+	default_sni {{PUBLIC_IP}}
+}
+
+{{PUBLIC_IP}}:443 {
+	tls internal
+	reverse_proxy wg-easy:80
+}

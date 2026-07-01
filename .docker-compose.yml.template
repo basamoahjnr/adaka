@@ -4,16 +4,19 @@ services:
     container_name: wg-easy
     hostname: wg-easy
     environment:
-      - WG_HOST={{PUBLIC_IP}}
-      - "PASSWORD_HASH={{WGEASY_PASSWORD}}"
-      - WG_DEFAULT_DNS={{WGEASY_DNS}}
-      - WG_DEFAULT_ADDRESS={{WGEASY_NETWORK}}
+      - INIT_ENABLED=true
+      - INIT_USERNAME=admin
+      - "INIT_PASSWORD={{WGEASY_PASSWORD}}"
+      - INIT_HOST={{PUBLIC_IP}}
+      - INIT_PORT=51820
+      - INIT_DNS={{WGEASY_DNS}}
+      - INIT_IPV4_CIDR={{WGEASY_NETWORK}}
+      - PORT=80
     volumes:
       - {{WGEASY_DIR}}:/etc/wireguard:rw
       - /lib/modules:/lib/modules:ro
     ports:
       - 51820:51820/udp
-      - 51821:51821/tcp
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
@@ -88,6 +91,23 @@ services:
     volumes:
       - {{FAIL2BAN_DIR}}:/config
       - /var/log:/var/log:ro
+
+  caddy:
+    image: {{CADDY_IMAGE}}
+    container_name: caddy
+    hostname: caddy
+    restart: unless-stopped
+    volumes:
+      - {{CADDY_DIR}}/Caddyfile:/etc/caddy/Caddyfile:ro
+      - {{CADDY_DIR}}/config:/config
+      - {{CADDY_DIR}}/data:/data
+    ports:
+      - 51821:443/tcp
+    networks:
+      adaka_network:
+        ipv4_address: {{CADDY_IPV4_ADDRESS}}
+    depends_on:
+      - wg-easy
 
 networks:
   adaka_network:
