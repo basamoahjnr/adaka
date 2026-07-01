@@ -261,13 +261,17 @@ install_fail2ban() {
 
         case "$PKG_MANAGER" in
             apt)
-                sudo apt-get install -y -qq fail2ban
+                sudo apt-get update -qq
+                sudo apt-get install -y -qq fail2ban \
+                    || error_exit "Failed to install fail2ban" "Try 'sudo apt-get update && sudo apt-get install fail2ban' manually"
                 ;;
             dnf|yum)
-                sudo "$PKG_MANAGER" install -y -q fail2ban
+                sudo "$PKG_MANAGER" install -y -q fail2ban \
+                    || error_exit "Failed to install fail2ban" "Try 'sudo $PKG_MANAGER install fail2ban' manually"
                 ;;
             pacman)
-                sudo pacman -S --noconfirm --quiet fail2ban
+                sudo pacman -Sy --noconfirm --quiet fail2ban \
+                    || error_exit "Failed to install fail2ban" "Try 'sudo pacman -Sy fail2ban' manually"
                 ;;
         esac
         success "fail2ban installed"
