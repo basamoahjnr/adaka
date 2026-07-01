@@ -27,7 +27,7 @@ RESET="\033[0m"
 
 # Progress tracking
 CURRENT_STEP=0
-TOTAL_STEPS=8
+TOTAL_STEPS=9
 
 # =============================================================================
 # UI Helper Functions
@@ -205,10 +205,11 @@ convert_wg_network() {
 
 # Install Docker and Compose if missing
 install_dependencies() {
+    detect_os
+
     if ! command -v docker &> /dev/null; then
         warn "Docker not found - installing"
-        detect_os
-        
+
         case "$PKG_MANAGER" in
             apt)
                 info "Detected Debian/Ubuntu system"
@@ -251,6 +252,49 @@ install_dependencies() {
     if ! docker compose version &> /dev/null; then
         error_exit "Docker Compose plugin not available" "Install docker-compose-plugin package"
     fi
+}
+
+# Install and configure fail2ban to block brute-force/bot login attempts against SSH
+install_fail2ban() {
+    if ! command -v fail2ban-client &> /dev/null; then
+        warn "fail2ban not found - installing"
+
+        case "$PKG_MANAGER" in
+            apt)
+                sudo apt-get install -y -qq fail2ban
+                ;;
+            dnf|yum)
+                sudo "$PKG_MANAGER" install -y -q fail2ban
+                ;;
+            pacman)
+                sudo pacman -S --noconfirm --quiet fail2ban
+                ;;
+        esac
+        success "fail2ban installed"
+    fi
+
+    local jail_template="$SCRIPT_DIR/.fail2ban-jail.local.template"
+    [[ -f "$jail_template" ]] || error_exit "fail2ban jail template missing" "Ensure $jail_template exists"
+
+    info "Configuring fail2ban SSH jail"
+    local jail_tmp
+    jail_tmp="$(mktemp)"
+    sed -e "s|{{FAIL2BAN_BANTIME}}|$FAIL2BAN_BANTIME|g" \
+        -e "s|{{FAIL2BAN_FINDTIME}}|$FAIL2BAN_FINDTIME|g" \
+        -e "s|{{FAIL2BAN_MAXRETRY}}|$FAIL2BAN_MAXRETRY|g" \
+        -e "s|{{WGEASY_DEFAULT_NETWORK}}|$WGEASY_DEFAULT_NETWORK|g" \
+        "$jail_template" > "$jail_tmp" \
+        || error_exit "fail2ban jail configuration failed" "Check template syntax"
+
+    sudo install -m 644 -o root -g root "$jail_tmp" /etc/fail2ban/jail.local \
+        || error_exit "Failed to install fail2ban jail config" "Check sudo permissions"
+    rm -f "$jail_tmp"
+
+    sudo systemctl enable fail2ban &> /dev/null || true
+    sudo systemctl restart fail2ban \
+        || error_exit "Failed to start fail2ban" "Check 'systemctl status fail2ban'"
+
+    success "fail2ban SSH protection active"
 }
 
 # Create directory structure with secure permissions
@@ -512,6 +556,13 @@ step "Checking Prerequisites"
 install_dependencies
 success "Docker is available"
 success "Docker Compose is available"
+
+# ─────────────────────────────────────────────────────────────────────────────
+step "Hardening SSH Security"
+# ─────────────────────────────────────────────────────────────────────────────
+
+install_fail2ban
+success "fail2ban configured (bantime=$FAIL2BAN_BANTIME, maxretry=$FAIL2BAN_MAXRETRY)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Creating Directory Structure"

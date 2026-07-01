@@ -23,6 +23,11 @@ ADAKA_DEFAULT_NETWORK="10.8.1.0/24"
 WGEASY_DEFAULT_NETWORK="192.168.100.0/24"
 WGEASY_DEFAULT_DNS="pihole"
 
+# fail2ban SSH jail settings (blocks brute-force/bot login attempts)
+FAIL2BAN_BANTIME="1h"
+FAIL2BAN_FINDTIME="10m"
+FAIL2BAN_MAXRETRY="5"
+
 # Timezone detection with fallback
 if command -v timedatectl &> /dev/null; then
     ADAKA_DEFAULT_TZ="$(timedatectl show --property=Timezone 2>/dev/null | cut -d= -f2)"
