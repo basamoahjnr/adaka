@@ -1,6 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
+# Bash 5.2+ enables patsub_replacement by default, which makes an unquoted
+# '&' in the replacement of ${var//pattern/replacement} expand to the whole
+# matched text (sed-style). generate_compose_config() relies on that
+# construct to splice WGEASY_PASSWORD/PIHOLE_WEBPASSWORD into the compose
+# file, so a password containing '&' would silently get replaced with the
+# literal "{{...}}" placeholder instead of the password itself. Disable it
+# so '&' is always treated as a literal character.
+shopt -u patsub_replacement 2>/dev/null || true
+
 # =============================================================================
 # Configuration and Constants
 # =============================================================================
