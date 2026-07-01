@@ -1,6 +1,7 @@
 [sshd]
-enabled  = true
-bantime  = {{FAIL2BAN_BANTIME}}
-findtime = {{FAIL2BAN_FINDTIME}}
-maxretry = {{FAIL2BAN_MAXRETRY}}
-ignoreip = 127.0.0.1/8 ::1 {{WGEASY_DEFAULT_NETWORK}}
+enabled   = true
+banaction = iptables-multiport
+bantime   = {{FAIL2BAN_BANTIME}}
+findtime  = {{FAIL2BAN_FINDTIME}}
+maxretry  = {{FAIL2BAN_MAXRETRY}}
+ignoreip  = 127.0.0.1/8 ::1 {{WGEASY_DEFAULT_NETWORK}}

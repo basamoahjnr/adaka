@@ -281,8 +281,11 @@ install_dependencies() {
     fi
 }
 
-# Render the fail2ban sshd jail config that ships in $FAIL2BAN_DIR/jail.d,
-# picked up by the fail2ban container (linuxserver/fail2ban) on start.
+# Render the fail2ban sshd jail config that ships in
+# $FAIL2BAN_DIR/fail2ban/jail.d, picked up by the fail2ban container
+# (linuxserver/fail2ban) on start. The container mounts $FAIL2BAN_DIR at
+# /config, and /etc/fail2ban inside the container is a symlink to
+# /config/fail2ban, so custom jails must live one level deeper than /config.
 # Running fail2ban as a container avoids depending on the host's own
 # package repos (which can be unavailable, e.g. on an EOL OS release).
 configure_fail2ban_jail() {
@@ -290,13 +293,13 @@ configure_fail2ban_jail() {
     [[ -f "$jail_template" ]] || error_exit "fail2ban jail template missing" "Ensure $jail_template exists"
 
     info "Configuring fail2ban SSH jail"
-    mkdir -p "$FAIL2BAN_DIR/jail.d" || error_exit "Failed to create $FAIL2BAN_DIR/jail.d"
+    mkdir -p "$FAIL2BAN_DIR/fail2ban/jail.d" || error_exit "Failed to create $FAIL2BAN_DIR/fail2ban/jail.d"
 
     sed -e "s|{{FAIL2BAN_BANTIME}}|$FAIL2BAN_BANTIME|g" \
         -e "s|{{FAIL2BAN_FINDTIME}}|$FAIL2BAN_FINDTIME|g" \
         -e "s|{{FAIL2BAN_MAXRETRY}}|$FAIL2BAN_MAXRETRY|g" \
         -e "s|{{WGEASY_DEFAULT_NETWORK}}|$WGEASY_DEFAULT_NETWORK|g" \
-        "$jail_template" > "$FAIL2BAN_DIR/jail.d/sshd.local" \
+        "$jail_template" > "$FAIL2BAN_DIR/fail2ban/jail.d/sshd.local" \
         || error_exit "fail2ban jail configuration failed" "Check template syntax"
 
     success "fail2ban SSH jail configured (bantime=$FAIL2BAN_BANTIME, maxretry=$FAIL2BAN_MAXRETRY)"
@@ -312,7 +315,7 @@ setup_directories() {
         "$ADGUARD_DIR/conf"
         "$UNBOUND_DIR"
         "$PORTAINER_DIR/data"
-        "$FAIL2BAN_DIR/jail.d"
+        "$FAIL2BAN_DIR/fail2ban/jail.d"
     )
     
     local created=0
