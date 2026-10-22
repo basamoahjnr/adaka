@@ -24,6 +24,6 @@ http://dns.{{ADAKA_LOCAL_DOMAIN}} {
 	reverse_proxy {{DNS_CONTAINER}}:80
 }
 
-http://portainer.{{ADAKA_LOCAL_DOMAIN}} {
-	reverse_proxy portainer:9000
+http://arcane.{{ADAKA_LOCAL_DOMAIN}} {
+	reverse_proxy arcane:3552
 }

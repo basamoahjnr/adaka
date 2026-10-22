@@ -150,7 +150,7 @@ print_success() {
     echo -e "${DIM}$(printf '─%.0s' {1..40})${RESET}"
     echo -e "  ${CYAN}${dns_choice^} DNS${RESET}     http://${GREEN}dns.$ADAKA_LOCAL_DOMAIN/admin${RESET}"
     echo -e "  ${CYAN}SearXNG${RESET}          http://${GREEN}search.$ADAKA_LOCAL_DOMAIN${RESET}"
-    echo -e "  ${CYAN}Portainer${RESET}        http://${GREEN}portainer.$ADAKA_LOCAL_DOMAIN${RESET}"
+    echo -e "  ${CYAN}Arcane${RESET}           http://${GREEN}arcane.$ADAKA_LOCAL_DOMAIN${RESET}"
     echo ""
     echo -e "${BOLD}Quick Start:${RESET}"
     echo -e "${DIM}$(printf '─%.0s' {1..40})${RESET}"
@@ -168,8 +168,7 @@ print_success() {
         echo ""
     fi
     
-    echo -e "${CYAN}${BOLD} Portainer:${RESET} Create admin account on first login"
-    echo -e "${DIM}  Password: Use any secure password (not the one from -p flag)${RESET}"
+    echo -e "${CYAN}${BOLD} Arcane:${RESET} Log in as ${GREEN}arcane${RESET} / ${GREEN}arcane-admin${RESET}; you must set a new password on first login"
     echo ""
 }
 
@@ -344,7 +343,7 @@ setup_directories() {
         "$ADGUARD_DIR/work"
         "$ADGUARD_DIR/conf"
         "$UNBOUND_DIR"
-        "$PORTAINER_DIR/data"
+        "$ARCANE_DIR/data"
         "$FAIL2BAN_DIR/fail2ban/jail.d"
         "$CADDY_DIR/config"
         "$CADDY_DIR/data"
@@ -366,6 +365,22 @@ setup_directories() {
     else
         info "All directories already exist"
     fi
+}
+
+# Arcane encrypts the secrets it stores (registry logins, API keys) with this
+# key, so generate it once and reuse it on every later run. Without it Arcane
+# refuses to start. Alphanumeric only, so it is safe to substitute with sed.
+load_arcane_encryption_key() {
+    local key_file="$ARCANE_DIR/encryption.key"
+    if [[ ! -s "$key_file" ]]; then
+        local key
+        key="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+        (umask 077 && printf '%s' "${key:0:32}" > "$key_file") \
+            || error_exit "Failed to write $key_file"
+    fi
+    ARCANE_ENCRYPTION_KEY="$(cat "$key_file")"
+    [[ "$ARCANE_ENCRYPTION_KEY" =~ ^[A-Za-z0-9]{32}$ ]] \
+        || error_exit "Invalid Arcane encryption key in $key_file" "Delete it to generate a new one"
 }
 
 # Escape a value for safe embedding in a double-quoted YAML env string,
@@ -495,9 +510,10 @@ generate_compose_config() {
         -e "s|{{UNBOUND_IMAGE}}|$UNBOUND_IMAGE|g" \
         -e "s|{{UNBOUND_DIR}}|$UNBOUND_DIR|g" \
         -e "s|{{UNBOUND_IPV4_ADDRESS}}|$UNBOUND_IPV4_ADDRESS|g" \
-        -e "s|{{PORTAINER_IMAGE}}|$PORTAINER_IMAGE|g" \
-        -e "s|{{PORTAINER_DIR}}|$PORTAINER_DIR|g" \
-        -e "s|{{PORTAINER_IPV4_ADDRESS}}|$PORTAINER_IPV4_ADDRESS|g" \
+        -e "s|{{ARCANE_IMAGE}}|$ARCANE_IMAGE|g" \
+        -e "s|{{ARCANE_DIR}}|$ARCANE_DIR|g" \
+        -e "s|{{ARCANE_IPV4_ADDRESS}}|$ARCANE_IPV4_ADDRESS|g" \
+        -e "s|{{ARCANE_ENCRYPTION_KEY}}|$ARCANE_ENCRYPTION_KEY|g" \
         -e "s|{{FAIL2BAN_IMAGE}}|$FAIL2BAN_IMAGE|g" \
         -e "s|{{FAIL2BAN_DIR}}|$FAIL2BAN_DIR|g" \
         -e "s|{{CADDY_IMAGE}}|$CADDY_IMAGE|g" \
@@ -630,6 +646,9 @@ success "WireGuard credentials configured"
 
 PIHOLE_WEBPASSWORD=$(escape_for_compose_env "$ADAKA_PASSWORD")
 success "Pi-hole credentials configured"
+
+load_arcane_encryption_key
+success "Arcane encryption key configured"
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Building Docker Configuration"
