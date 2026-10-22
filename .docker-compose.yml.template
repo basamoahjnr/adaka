@@ -122,16 +122,17 @@ services:
     container_name: searxng
     hostname: searxng
     restart: unless-stopped
-    # VPN-only via Caddy (search.{{ADAKA_LOCAL_DOMAIN}}). On first start the
-    # image writes settings.yml with a random secret_key and image_proxy on.
+    # VPN-only via Caddy (search.{{ADAKA_LOCAL_DOMAIN}}). settings.yml comes
+    # from .searxng-settings.yml.template; the secret_key from SEARXNG_SECRET.
     environment:
       - SEARXNG_BASE_URL=http://search.{{ADAKA_LOCAL_DOMAIN}}/
+      - SEARXNG_SECRET={{SEARXNG_SECRET}}
     volumes:
       - {{SEARXNG_DIR}}/config:/etc/searxng
       - {{SEARXNG_DIR}}/data:/var/cache/searxng
-    # The entrypoint runs as root to chown its volumes to the searxng user,
-    # then writes settings.yml into them; DAC_OVERRIDE lets root do that
-    # write after the chown.
+    # The entrypoint runs as root to chown its volumes to the searxng user and
+    # then checks (or creates) settings.yml in them; without DAC_OVERRIDE root
+    # can't even stat it inside the 700 config directory.
     cap_drop:
       - ALL
     cap_add:

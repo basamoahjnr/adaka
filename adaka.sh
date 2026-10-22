@@ -367,20 +367,35 @@ setup_directories() {
     fi
 }
 
-# Arcane encrypts the secrets it stores (registry logins, API keys) with this
-# key, so generate it once and reuse it on every later run. Without it Arcane
-# refuses to start. Alphanumeric only, so it is safe to substitute with sed.
-load_arcane_encryption_key() {
-    local key_file="$ARCANE_DIR/encryption.key"
+# Store a 32-character secret in the variable named $1, generating it into
+# file $2 on the first run and reusing it on every later run. Alphanumeric
+# only, so it is safe to substitute with sed.
+load_or_create_secret() {
+    local var_name="$1"
+    local key_file="$2"
     if [[ ! -s "$key_file" ]]; then
         local key
         key="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
         (umask 077 && printf '%s' "${key:0:32}" > "$key_file") \
             || error_exit "Failed to write $key_file"
     fi
-    ARCANE_ENCRYPTION_KEY="$(cat "$key_file")"
-    [[ "$ARCANE_ENCRYPTION_KEY" =~ ^[A-Za-z0-9]{32}$ ]] \
-        || error_exit "Invalid Arcane encryption key in $key_file" "Delete it to generate a new one"
+    local value
+    value="$(cat "$key_file")"
+    [[ "$value" =~ ^[A-Za-z0-9]{32}$ ]] \
+        || error_exit "Invalid secret in $key_file" "Delete it to generate a new one"
+    printf -v "$var_name" '%s' "$value"
+}
+
+# Install SearXNG's settings.yml from the template on every run, so the repo
+# stays the source of truth. Per-browser preferences live in cookies, not here.
+configure_searxng() {
+    local searxng_template="$SCRIPT_DIR/.searxng-settings.yml.template"
+    [[ -f "$searxng_template" ]] || error_exit "SearXNG settings template missing" "Ensure $searxng_template exists"
+
+    info "Configuring SearXNG"
+    cp "$searxng_template" "$SEARXNG_DIR/config/settings.yml" \
+        || error_exit "SearXNG configuration failed" "Check permissions on $SEARXNG_DIR"
+    success "SearXNG configured"
 }
 
 # Escape a value for safe embedding in a double-quoted YAML env string,
@@ -522,6 +537,7 @@ generate_compose_config() {
         -e "s|{{SEARXNG_IMAGE}}|$SEARXNG_IMAGE|g" \
         -e "s|{{SEARXNG_DIR}}|$SEARXNG_DIR|g" \
         -e "s|{{SEARXNG_IPV4_ADDRESS}}|$SEARXNG_IPV4_ADDRESS|g" \
+        -e "s|{{SEARXNG_SECRET}}|$SEARXNG_SECRET|g" \
         -e "s|{{ADAKA_LOCAL_DOMAIN}}|$ADAKA_LOCAL_DOMAIN|g" \
         "$ADAKA_DIR/docker-compose.yml.tmp" \
         || error_exit "Variable substitution failed" "Check template syntax"
@@ -629,6 +645,7 @@ step "Hardening SSH Security"
 
 configure_fail2ban_jail
 configure_caddy
+configure_searxng
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Configuring Unbound DNS Resolver"
@@ -647,8 +664,13 @@ success "WireGuard credentials configured"
 PIHOLE_WEBPASSWORD=$(escape_for_compose_env "$ADAKA_PASSWORD")
 success "Pi-hole credentials configured"
 
-load_arcane_encryption_key
+# Arcane encrypts the secrets it stores (registry logins, API keys) with its
+# key and refuses to start without one, so it must survive re-runs
+load_or_create_secret ARCANE_ENCRYPTION_KEY "$ARCANE_DIR/encryption.key"
 success "Arcane encryption key configured"
+
+load_or_create_secret SEARXNG_SECRET "$SEARXNG_DIR/secret.key"
+success "SearXNG secret configured"
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Building Docker Configuration"

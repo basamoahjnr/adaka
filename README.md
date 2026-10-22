@@ -158,7 +158,7 @@ ADAKA_DIR="$HOME/.adaka"                  # All service data
 ├── unbound/          # Unbound config & DNSSEC keys
 ├── arcane/           # Arcane data and encryption.key (keep it: it decrypts stored secrets)
 ├── caddy/            # Caddyfile and TLS state
-├── searxng/          # SearXNG settings.yml and cache
+├── searxng/          # SearXNG settings.yml (rendered from .searxng-settings.yml.template), secret.key, cache
 └── docker-compose.yml
 ```
 
