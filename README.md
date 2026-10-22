@@ -11,7 +11,7 @@ ADAKA
 - **WireGuard VPN** - Fast, modern VPN with easy client management via web UI
 - **DNS Blocking** - Choose between Pi-hole or AdGuard Home for ad/tracker blocking
 - **DNSSEC** - Cryptographically verified DNS responses via Unbound
-- **Portainer** - Docker management dashboard
+- **Arcane** - Docker management dashboard (containers, images, logs, updates)
 - **SearXNG** - Private metasearch engine, queried from your server instead of your devices
 - **VPN-only admin** - Every web UI except the WireGuard admin is reachable only over the VPN
 - **One-command setup** - Automated installation with progress feedback
@@ -72,7 +72,7 @@ chmod +x adaka.sh
         │            (10.8.1.0/24)                  │
         │                                           │
         │  ┌───────────┐  ┌───────────┐            │
-        │  │ WireGuard │  │ Portainer │            │
+        │  │ WireGuard │  │  Arcane   │            │
         │  │  :51820   │  │   :9000   │            │
         │  │  :51821   │  │           │            │
         │  └─────┬─────┘  └───────────┘            │
@@ -103,7 +103,7 @@ chmod +x adaka.sh
 | Pi-hole | 10.8.1.3 | - | DNS blocker (option 1) |
 | AdGuard | 10.8.1.4 | - | DNS blocker (option 2) |
 | Unbound | 10.8.1.5 | - | DNSSEC recursive resolver |
-| Portainer | 10.8.1.6 | - | Docker management |
+| Arcane | 10.8.1.6 | - | Docker management |
 | Caddy | 10.8.1.7 | 51821/tcp | TLS for the WireGuard admin UI; proxy for VPN-only services |
 | SearXNG | 10.8.1.8 | - | Private metasearch |
 
@@ -119,7 +119,7 @@ internal port is not published on the host.
 | WireGuard VPN | `https://<YOUR_IP>:51821` (self-signed cert) | Public |
 | Pi-hole/AdGuard | `http://dns.adaka.internal/admin` | VPN only |
 | SearXNG | `http://search.adaka.internal` | VPN only |
-| Portainer | `http://portainer.adaka.internal` | VPN only |
+| Arcane | `http://arcane.adaka.internal` | VPN only |
 
 These URLs are plain HTTP, but the traffic travels inside the encrypted
 WireGuard tunnel. To make SearXNG your browser's search engine, add
@@ -134,7 +134,7 @@ Caddyfile. No DNS change is needed.
 1. **WireGuard**: Log in with your password, create a new client, scan QR code with WireGuard app
 2. **Pi-hole**: Log in with your password at `/admin`
 3. **AdGuard**: Connect to the VPN, complete the setup wizard at `http://10.8.1.4:3000`, set upstream DNS to `10.8.1.5:5335`, and add a DNS rewrite `*.adaka.internal` → `10.8.1.7`
-4. **Portainer**: Create admin account on first visit (use any password)
+4. **Arcane**: Log in as `arcane` / `arcane-admin`; you must set a new password on first login
 
 ## Configuration
 
@@ -156,7 +156,7 @@ ADAKA_DIR="$HOME/.adaka"                  # All service data
 ├── wg-easy/          # WireGuard configuration
 ├── pihole/           # Pi-hole data (or adguard/)
 ├── unbound/          # Unbound config & DNSSEC keys
-├── portainer/        # Portainer data
+├── arcane/           # Arcane data and encryption.key (keep it: it decrypts stored secrets)
 ├── caddy/            # Caddyfile and TLS state
 ├── searxng/          # SearXNG settings.yml and cache
 └── docker-compose.yml
