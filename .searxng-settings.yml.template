@@ -1,0 +1,67 @@
+# SearXNG settings for Adaka. Only overrides are listed here; everything else
+# comes from SearXNG's own defaults (use_default_settings). The secret_key is
+# passed in via SEARXNG_SECRET, generated once by adaka.sh.
+# Reference: https://docs.searxng.org/admin/settings/
+use_default_settings: true
+
+server:
+  # Fetch result images through the server so image hosts never see clients
+  image_proxy: true
+
+search:
+  # Google's suggestions answer requests from a datacenter IP, unlike its
+  # search results; Google only ever sees the server, never the client.
+  autocomplete: "google"
+  # Site icons next to results, fetched by the server and cached locally
+  favicon_resolver: "duckduckgo"
+
+ui:
+  results_on_new_tab: true
+
+# This block replaces SearXNG's plugin list rather than merging with it, so
+# every plugin is listed. Only infinite_scroll differs from the defaults.
+plugins:
+  searx.plugins.calculator.SXNGPlugin:
+    active: true
+  searx.plugins.infinite_scroll.SXNGPlugin:
+    active: true
+  searx.plugins.hash_plugin.SXNGPlugin:
+    active: true
+  searx.plugins.self_info.SXNGPlugin:
+    active: true
+  searx.plugins.unit_converter.SXNGPlugin:
+    active: true
+  searx.plugins.ahmia_filter.SXNGPlugin:
+    active: true
+  searx.plugins.hostnames.SXNGPlugin:
+    active: true
+  searx.plugins.time_zone.SXNGPlugin:
+    active: true
+  searx.plugins.oa_doi_rewrite.SXNGPlugin:
+    active: false
+  searx.plugins.tor_check.SXNGPlugin:
+    active: false
+  searx.plugins.tracker_url_remover.SXNGPlugin:
+    active: true
+
+# Rewrite, drop or reorder results by hostname (regex matched on the host)
+hostnames:
+  remove:
+    - '(.*\.)?pinterest\.[a-z.]+$'
+  # replace:
+  #   '(.*\.)?reddit\.com$': 'old.reddit.com'
+  # low_priority:
+  #   - '(.*\.)?quora\.com$'
+  # high_priority:
+  #   - '(.*\.)?wikipedia\.org$'
+
+# Engines that still answer queries from a datacenter IP. Google, DuckDuckGo
+# and Qwant typically answer server IPs with a CAPTCHA or 403; SearXNG
+# suspends failing engines automatically, so they are left at their defaults.
+engines:
+  - name: startpage
+    inactive: false
+  - name: mojeek
+    inactive: false
+  - name: bing
+    disabled: false
