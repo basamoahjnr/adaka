@@ -145,8 +145,12 @@ print_success() {
     echo -e "${BOLD}Service URLs:${RESET}"
     echo -e "${DIM}$(printf '─%.0s' {1..40})${RESET}"
     echo -e "  ${CYAN}WireGuard VPN${RESET}    https://${GREEN}$public_ip:51821${RESET} ${DIM}(self-signed cert)${RESET}"
-    echo -e "  ${CYAN}${dns_choice^} DNS${RESET}     http://${GREEN}$public_ip:8083/admin${RESET}"
-    echo -e "  ${CYAN}Portainer${RESET}        http://${GREEN}$public_ip:9000${RESET}"
+    echo ""
+    echo -e "${BOLD}VPN-only Services:${RESET} ${DIM}(connect to the VPN first)${RESET}"
+    echo -e "${DIM}$(printf '─%.0s' {1..40})${RESET}"
+    echo -e "  ${CYAN}${dns_choice^} DNS${RESET}     http://${GREEN}dns.$ADAKA_LOCAL_DOMAIN/admin${RESET}"
+    echo -e "  ${CYAN}SearXNG${RESET}          http://${GREEN}search.$ADAKA_LOCAL_DOMAIN${RESET}"
+    echo -e "  ${CYAN}Portainer${RESET}        http://${GREEN}portainer.$ADAKA_LOCAL_DOMAIN${RESET}"
     echo ""
     echo -e "${BOLD}Quick Start:${RESET}"
     echo -e "${DIM}$(printf '─%.0s' {1..40})${RESET}"
@@ -158,8 +162,9 @@ print_success() {
     if [[ "$dns_choice" == "adguard" ]]; then
         echo -e "${YELLOW}${BOLD} AdGuard Setup Required:${RESET}"
         echo -e "${DIM}$(printf '─%.0s' {1..40})${RESET}"
-        echo -e "  1. Visit ${GREEN}http://$public_ip:3000${RESET} for initial setup"
+        echo -e "  1. Connect to the VPN, then visit ${GREEN}http://$ADGUARD_IPV4_ADDRESS:3000${RESET} for initial setup"
         echo -e "  2. Set upstream DNS to: ${GREEN}${UNBOUND_IPV4_ADDRESS}:5335${RESET}"
+        echo -e "  3. Add a DNS rewrite: ${GREEN}*.$ADAKA_LOCAL_DOMAIN${RESET} -> ${GREEN}$CADDY_IPV4_ADDRESS${RESET}"
         echo ""
     fi
     
@@ -307,13 +312,23 @@ configure_fail2ban_jail() {
 # Install the Caddyfile that terminates TLS (self-signed, no domain needed)
 # in front of wg-easy's admin UI. wg-easy v15 refuses admin login over plain
 # HTTP, and the only alternative is INSECURE=true, which sends the admin
-# password in cleartext -- unacceptable on a public IP.
+# password in cleartext -- unacceptable on a public IP. The same Caddyfile
+# also serves the VPN-only services at <service>.$ADAKA_LOCAL_DOMAIN.
 configure_caddy() {
     local caddy_template="$SCRIPT_DIR/.caddyfile.template"
     [[ -f "$caddy_template" ]] || error_exit "Caddyfile template missing" "Ensure $caddy_template exists"
 
-    info "Configuring Caddy reverse proxy for wg-easy"
+    local dns_container
+    case "$WGEASY_DNS" in
+        "pihole") dns_container="pihole" ;;
+        "adguard") dns_container="adguardhome" ;;
+        *) error_exit "Invalid DNS selection" ;;
+    esac
+
+    info "Configuring Caddy reverse proxy"
     sed -e "s|{{PUBLIC_IP}}|$ADAKA_PUBLIC_IP|g" \
+        -e "s|{{ADAKA_LOCAL_DOMAIN}}|$ADAKA_LOCAL_DOMAIN|g" \
+        -e "s|{{DNS_CONTAINER}}|$dns_container|g" \
         "$caddy_template" > "$CADDY_DIR/Caddyfile" \
         || error_exit "Caddyfile configuration failed" "Check permissions on $CADDY_DIR"
 
@@ -333,6 +348,8 @@ setup_directories() {
         "$FAIL2BAN_DIR/fail2ban/jail.d"
         "$CADDY_DIR/config"
         "$CADDY_DIR/data"
+        "$SEARXNG_DIR/config"
+        "$SEARXNG_DIR/data"
     )
     
     local created=0
@@ -486,6 +503,10 @@ generate_compose_config() {
         -e "s|{{CADDY_IMAGE}}|$CADDY_IMAGE|g" \
         -e "s|{{CADDY_DIR}}|$CADDY_DIR|g" \
         -e "s|{{CADDY_IPV4_ADDRESS}}|$CADDY_IPV4_ADDRESS|g" \
+        -e "s|{{SEARXNG_IMAGE}}|$SEARXNG_IMAGE|g" \
+        -e "s|{{SEARXNG_DIR}}|$SEARXNG_DIR|g" \
+        -e "s|{{SEARXNG_IPV4_ADDRESS}}|$SEARXNG_IPV4_ADDRESS|g" \
+        -e "s|{{ADAKA_LOCAL_DOMAIN}}|$ADAKA_LOCAL_DOMAIN|g" \
         "$ADAKA_DIR/docker-compose.yml.tmp" \
         || error_exit "Variable substitution failed" "Check template syntax"
 

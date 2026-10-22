@@ -3,10 +3,9 @@
     container_name: adguardhome
     hostname: adguardhome
     restart: unless-stopped
-    ports:
-      - "3000:3000"  # Initial setup wizard only
-      - "8083:80"
-      - "4443:443"
+    # No published ports: run the setup wizard over the VPN at
+    # http://{{ADGUARD_IPV4_ADDRESS}}:3000; afterwards the admin UI is at
+    # dns.{{ADAKA_LOCAL_DOMAIN}} once its DNS rewrite is added
     volumes:
       - {{ADGUARD_DIR}}/work:/opt/adguardhome/work
       - {{ADGUARD_DIR}}/conf:/opt/adguardhome/conf
