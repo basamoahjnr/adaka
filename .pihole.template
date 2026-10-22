@@ -7,11 +7,12 @@
       - TZ={{ADAKA_DEFAULT_TZ}}
       - FTLCONF_dns_upstreams={{UNBOUND_IPV4_ADDRESS}}#5335
       - FTLCONF_dns_listeningMode=all
+      # Answer every <service>.{{ADAKA_LOCAL_DOMAIN}} with Caddy's address,
+      # so new private services only need a Caddyfile entry
+      - FTLCONF_misc_dnsmasq_lines=address=/{{ADAKA_LOCAL_DOMAIN}}/{{CADDY_IPV4_ADDRESS}}
     volumes:
       - {{PIHOLE_DIR}}/etc-pihole:/etc/pihole
-    ports:
-      - 8083:80/tcp
-      - 4443:443/tcp
+    # Admin UI is VPN-only via Caddy (dns.{{ADAKA_LOCAL_DOMAIN}}/admin)
     restart: unless-stopped
     cap_add:
       - NET_ADMIN

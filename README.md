@@ -12,6 +12,8 @@ ADAKA
 - **DNS Blocking** - Choose between Pi-hole or AdGuard Home for ad/tracker blocking
 - **DNSSEC** - Cryptographically verified DNS responses via Unbound
 - **Portainer** - Docker management dashboard
+- **SearXNG** - Private metasearch engine, queried from your server instead of your devices
+- **VPN-only admin** - Every web UI except the WireGuard admin is reachable only over the VPN
 - **One-command setup** - Automated installation with progress feedback
 - **Cross-distro support** - Works on Debian/Ubuntu, Fedora/RHEL, Arch Linux
 
@@ -37,7 +39,7 @@ chmod +x adaka.sh
 - Linux server (Debian, Ubuntu, Fedora, RHEL, Arch, etc.)
 - Docker and Docker Compose (auto-installed if missing)
 - Root/sudo access
-- Open ports: `51820/udp` (WireGuard), `51821`, `8083`, `9000` (web UIs)
+- Open ports: `51820/udp` (WireGuard), `51821/tcp` (WireGuard admin UI). Nothing else is published.
 
 ## Usage
 
@@ -97,29 +99,41 @@ chmod +x adaka.sh
 
 | Service | Internal IP | External Port | Purpose |
 |---------|-------------|---------------|---------|
-| WireGuard | 10.8.1.2 | 51820/udp, 51821 | VPN server + web UI |
-| Pi-hole | 10.8.1.3 | 8083 | DNS blocker (option 1) |
-| AdGuard | 10.8.1.4 | 8083, 3000* | DNS blocker (option 2) |
+| WireGuard | 10.8.1.2 | 51820/udp | VPN server |
+| Pi-hole | 10.8.1.3 | - | DNS blocker (option 1) |
+| AdGuard | 10.8.1.4 | - | DNS blocker (option 2) |
 | Unbound | 10.8.1.5 | - | DNSSEC recursive resolver |
-| Portainer | 10.8.1.6 | 9000 | Docker management |
-
-*Port 3000 is used for AdGuard initial setup only
+| Portainer | 10.8.1.6 | - | Docker management |
+| Caddy | 10.8.1.7 | 51821/tcp | TLS for the WireGuard admin UI; proxy for VPN-only services |
+| SearXNG | 10.8.1.8 | - | Private metasearch |
 
 ## Accessing Services
 
-After installation, access your services at:
+Only the WireGuard admin UI is public. Everything else is served by Caddy at
+`<service>.adaka.internal` and is reachable **only while connected to the VPN**:
+the VPN's DNS (Pi-hole) resolves `*.adaka.internal` to Caddy, and Caddy's
+internal port is not published on the host.
 
-| Service | URL |
-|---------|-----|
-| WireGuard VPN | `http://<YOUR_IP>:51821` |
-| Pi-hole/AdGuard | `http://<YOUR_IP>:8083/admin` |
-| Portainer | `http://<YOUR_IP>:9000` |
+| Service | URL | Access |
+|---------|-----|--------|
+| WireGuard VPN | `https://<YOUR_IP>:51821` (self-signed cert) | Public |
+| Pi-hole/AdGuard | `http://dns.adaka.internal/admin` | VPN only |
+| SearXNG | `http://search.adaka.internal` | VPN only |
+| Portainer | `http://portainer.adaka.internal` | VPN only |
+
+These URLs are plain HTTP, but the traffic travels inside the encrypted
+WireGuard tunnel. To make SearXNG your browser's search engine, add
+`http://search.adaka.internal/search?q=%s` as a custom search engine.
+
+To add another private service, attach it to `adaka_network` without
+publishing ports and add an `http://<name>.adaka.internal` block to the
+Caddyfile. No DNS change is needed.
 
 ### First-time Setup
 
 1. **WireGuard**: Log in with your password, create a new client, scan QR code with WireGuard app
 2. **Pi-hole**: Log in with your password at `/admin`
-3. **AdGuard**: Complete setup wizard at port 3000, set upstream DNS to `10.8.1.5:5335`
+3. **AdGuard**: Connect to the VPN, complete the setup wizard at `http://10.8.1.4:3000`, set upstream DNS to `10.8.1.5:5335`, and add a DNS rewrite `*.adaka.internal` → `10.8.1.7`
 4. **Portainer**: Create admin account on first visit (use any password)
 
 ## Configuration
@@ -143,6 +157,8 @@ ADAKA_DIR="$HOME/.adaka"                  # All service data
 ├── pihole/           # Pi-hole data (or adguard/)
 ├── unbound/          # Unbound config & DNSSEC keys
 ├── portainer/        # Portainer data
+├── caddy/            # Caddyfile and TLS state
+├── searxng/          # SearXNG settings.yml and cache
 └── docker-compose.yml
 ```
 
@@ -153,6 +169,7 @@ ADAKA_DIR="$HOME/.adaka"                  # All service data
 - **bcrypt password hashing** for WireGuard admin
 - **Secure YAML escaping** prevents injection attacks
 - **Access control** - DNS resolver only accessible from internal networks
+- **Minimal attack surface** - Only WireGuard (51820/udp) and its TLS admin UI (51821/tcp) are published
 
 ## Managing Services
 
@@ -183,7 +200,9 @@ docker compose -f ~/.adaka/docker-compose.yml up -d
 
 ### Web UI not accessible
 - Check if containers are running: `docker ps`
-- Verify firewall allows ports 51821, 8083, 9000
+- WireGuard admin: verify your firewall allows `51821/tcp`
+- `*.adaka.internal` services: connect to the VPN first, and check that your
+  device uses the VPN's DNS (`nslookup search.adaka.internal` should return `10.8.1.7`)
 
 ## License
 

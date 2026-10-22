@@ -10,3 +10,20 @@
 	tls internal
 	reverse_proxy wg-easy:80
 }
+
+# VPN-only services. Caddy's port 80 is not published on the host, so these
+# are reachable only from adaka_network, i.e. by WireGuard clients, whose DNS
+# resolves *.{{ADAKA_LOCAL_DOMAIN}} to Caddy. Plain HTTP is fine here because
+# WireGuard already encrypts the traffic between the device and the server.
+http://search.{{ADAKA_LOCAL_DOMAIN}} {
+	reverse_proxy searxng:8080
+}
+
+http://dns.{{ADAKA_LOCAL_DOMAIN}} {
+	redir / /admin/
+	reverse_proxy {{DNS_CONTAINER}}:80
+}
+
+http://portainer.{{ADAKA_LOCAL_DOMAIN}} {
+	reverse_proxy portainer:9000
+}

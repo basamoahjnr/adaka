@@ -41,9 +41,9 @@ services:
     restart: unless-stopped
     volumes:
       - {{UNBOUND_DIR}}:/opt/unbound/etc/unbound/
-    ports:
-      - 5335:5335/tcp
-      - 5335:5335/udp
+    # No published ports: the DNS blocker reaches Unbound over adaka_network.
+    # Publishing 5335 made it an open resolver, because Docker's port proxy
+    # rewrites the source to the bridge gateway, which access-control allows.
     cap_add:
       - NET_ADMIN
     networks:
@@ -63,17 +63,12 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - {{PORTAINER_DIR}}/data:/data
-    ports:
-      - 9000:9000
+    # VPN-only via Caddy (portainer.{{ADAKA_LOCAL_DOMAIN}}). No healthcheck:
+    # the image ships no shell, curl or wget to run one with.
     restart: unless-stopped
     networks:
       adaka_network:
         ipv4_address: {{PORTAINER_IPV4_ADDRESS}}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
   fail2ban:
     image: {{FAIL2BAN_IMAGE}}
@@ -108,6 +103,38 @@ services:
         ipv4_address: {{CADDY_IPV4_ADDRESS}}
     depends_on:
       - wg-easy
+      - searxng
+
+  searxng:
+    image: {{SEARXNG_IMAGE}}
+    container_name: searxng
+    hostname: searxng
+    restart: unless-stopped
+    # VPN-only via Caddy (search.{{ADAKA_LOCAL_DOMAIN}}). On first start the
+    # image writes settings.yml with a random secret_key and image_proxy on.
+    environment:
+      - SEARXNG_BASE_URL=http://search.{{ADAKA_LOCAL_DOMAIN}}/
+    volumes:
+      - {{SEARXNG_DIR}}/config:/etc/searxng
+      - {{SEARXNG_DIR}}/data:/var/cache/searxng
+    # The entrypoint runs as root to chown its volumes to the searxng user,
+    # then writes settings.yml into them; DAC_OVERRIDE lets root do that
+    # write after the chown.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    networks:
+      adaka_network:
+        ipv4_address: {{SEARXNG_IPV4_ADDRESS}}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
   adaka_network:

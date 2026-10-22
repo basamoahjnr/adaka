@@ -10,6 +10,7 @@ PORTAINER_IMAGE="portainer/portainer-ce:latest"
 ADGUARD_IMAGE="adguard/adguardhome:latest"
 FAIL2BAN_IMAGE="lscr.io/linuxserver/fail2ban:latest"
 CADDY_IMAGE="caddy:2.10.0-alpine"
+SEARXNG_IMAGE="searxng/searxng:2026.10.7-6671d89be"
 
 # Directory paths
 ADAKA_DIR="$HOME/.adaka"
@@ -20,12 +21,17 @@ UNBOUND_DIR="$ADAKA_DIR/unbound"
 PORTAINER_DIR="$ADAKA_DIR/portainer"
 FAIL2BAN_DIR="$ADAKA_DIR/fail2ban"
 CADDY_DIR="$ADAKA_DIR/caddy"
+SEARXNG_DIR="$ADAKA_DIR/searxng"
 
 # Network configuration
 # Note: Ensure these don't conflict with your local network
 ADAKA_DEFAULT_NETWORK="10.8.1.0/24"
 WGEASY_DEFAULT_NETWORK="192.168.100.0/24"
 WGEASY_DEFAULT_DNS="pihole"
+
+# Private (VPN-only) services are served by Caddy at <service>.$ADAKA_LOCAL_DOMAIN.
+# .internal is reserved by ICANN for private use, so it never resolves publicly.
+ADAKA_LOCAL_DOMAIN="adaka.internal"
 
 # fail2ban SSH jail settings (blocks brute-force/bot login attempts)
 FAIL2BAN_BANTIME="1h"
@@ -45,6 +51,7 @@ ADGUARD_IPV4_ADDRESS="10.8.1.4"
 UNBOUND_IPV4_ADDRESS="10.8.1.5"
 PORTAINER_IPV4_ADDRESS="10.8.1.6"
 CADDY_IPV4_ADDRESS="10.8.1.7"
+SEARXNG_IPV4_ADDRESS="10.8.1.8"
 
 # =============================================================================
 # Note: The following are set via CLI arguments and cannot be configured here:
