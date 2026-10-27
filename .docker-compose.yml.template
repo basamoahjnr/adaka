@@ -18,12 +18,16 @@ services:
       # Lets the session cookie work over http://wg.{{ADAKA_LOCAL_DOMAIN}}, which
       # WireGuard already encrypts; the public route stays HTTPS via Caddy
       - INSECURE=true
+      # A smaller V8 heap makes Node collect garbage sooner on a 1 GB host
+      - NODE_OPTIONS=--max-old-space-size=96
     volumes:
       - {{WGEASY_DIR}}:/etc/wireguard:rw
       - /lib/modules:/lib/modules:ro
     ports:
       - 51820:51820/udp
     restart: unless-stopped
+    # Memory caps keep one container from starving the rest; overflow goes to swap
+    mem_limit: 160m
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
@@ -128,11 +132,14 @@ services:
     container_name: searxng
     hostname: searxng
     restart: unless-stopped
+    mem_limit: 192m
     # VPN-only via Caddy (search.{{ADAKA_LOCAL_DOMAIN}}). settings.yml comes
     # from .searxng-settings.yml.template; the secret_key from SEARXNG_SECRET.
     environment:
       - SEARXNG_BASE_URL=http://search.{{ADAKA_LOCAL_DOMAIN}}/
       - SEARXNG_SECRET={{SEARXNG_SECRET}}
+      # One user needs few concurrent requests; fewer threads hold less memory
+      - GRANIAN_BLOCKING_THREADS=2
     volumes:
       - {{SEARXNG_DIR}}/config:/etc/searxng
       - {{SEARXNG_DIR}}/data:/var/cache/searxng

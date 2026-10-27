@@ -29,6 +29,9 @@ ADAKA_DEFAULT_NETWORK="10.8.1.0/24"
 WGEASY_DEFAULT_NETWORK="192.168.100.0/24"
 WGEASY_DEFAULT_DNS="pihole"
 
+# Swap file created when the host has under 2 GB RAM and no swap
+ADAKA_SWAP_SIZE="2G"
+
 # Private (VPN-only) services are served by Caddy at <service>.$ADAKA_LOCAL_DOMAIN.
 # .internal is reserved by ICANN for private use, so it never resolves publicly.
 ADAKA_LOCAL_DOMAIN="adaka.internal"
