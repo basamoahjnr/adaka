@@ -234,6 +234,35 @@ update_system() {
     success "System packages up to date"
 }
 
+# Add a swap file on small hosts. Without swap a 1 GB server runs out of
+# memory, evicts cached program files and thrashes the disk.
+ensure_swap() {
+    local mem_mb
+    mem_mb=$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)
+
+    if [[ -n "$(swapon --noheadings 2>/dev/null)" ]]; then
+        info "Swap already enabled"
+        return
+    fi
+    if (( mem_mb >= 2048 )); then
+        info "${mem_mb}MB RAM, swap not needed"
+        return
+    fi
+
+    info "Creating ${ADAKA_SWAP_SIZE} swap file (${mem_mb}MB RAM)"
+    sudo fallocate -l "$ADAKA_SWAP_SIZE" /swapfile \
+        && sudo chmod 600 /swapfile \
+        && sudo mkswap /swapfile > /dev/null \
+        && sudo swapon /swapfile \
+        || error_exit "Failed to create swap file" "Check free disk space"
+    grep -q '^/swapfile ' /etc/fstab \
+        || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab > /dev/null
+    printf 'vm.swappiness=10\nvm.vfs_cache_pressure=50\n' \
+        | sudo tee /etc/sysctl.d/99-adaka-swap.conf > /dev/null
+    sudo sysctl -q -p /etc/sysctl.d/99-adaka-swap.conf
+    success "Swap enabled"
+}
+
 # Install Docker and Compose if missing
 install_dependencies() {
     detect_os
@@ -610,6 +639,8 @@ print_summary
 step "Updating System Packages"
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Before the upgrade, which can itself run a 1 GB host out of memory
+ensure_swap
 update_system
 
 # ─────────────────────────────────────────────────────────────────────────────
