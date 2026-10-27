@@ -27,3 +27,7 @@ http://dns.{{ADAKA_LOCAL_DOMAIN}} {
 http://arcane.{{ADAKA_LOCAL_DOMAIN}} {
 	reverse_proxy arcane:3552
 }
+
+http://wg.{{ADAKA_LOCAL_DOMAIN}} {
+	reverse_proxy wg-easy:80
+}

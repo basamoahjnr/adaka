@@ -120,6 +120,7 @@ internal port is not published on the host.
 | Pi-hole/AdGuard | `http://dns.adaka.internal/admin` | VPN only |
 | SearXNG | `http://search.adaka.internal` | VPN only |
 | Arcane | `http://arcane.adaka.internal` | VPN only |
+| WireGuard VPN | `http://wg.adaka.internal` (same admin UI, no cert warning) | VPN only |
 
 These URLs are plain HTTP, but the traffic travels inside the encrypted
 WireGuard tunnel. To make SearXNG your browser's search engine, add
