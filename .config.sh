@@ -6,11 +6,11 @@
 WGEASY_IMAGE="ghcr.io/wg-easy/wg-easy:15"
 PIHOLE_IMAGE="pihole/pihole:latest"
 UNBOUND_IMAGE="mvance/unbound:1.22.0"
-ARCANE_IMAGE="ghcr.io/getarcaneapp/manager:v2.15.1"
+ARCANE_IMAGE="ghcr.io/getarcaneapp/manager:v2.17.1"
 ADGUARD_IMAGE="adguard/adguardhome:latest"
 FAIL2BAN_IMAGE="lscr.io/linuxserver/fail2ban:latest"
-CADDY_IMAGE="caddy:2.10.0-alpine"
-SEARXNG_IMAGE="searxng/searxng:2026.10.7-6671d89be"
+CADDY_IMAGE="caddy:2.11.7-alpine"
+SEARXNG_IMAGE="searxng/searxng:2026.10.27-cb74e7f81"
 
 # Directory paths
 ADAKA_DIR="$HOME/.adaka"
