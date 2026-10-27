@@ -11,6 +11,9 @@ services:
       - INIT_PORT=51820
       - INIT_DNS={{WGEASY_DNS}}
       - INIT_IPV4_CIDR={{WGEASY_NETWORK}}
+      # The explicit Docker network route beats a client LAN that claims all of
+      # 10.0.0.0/8, which would otherwise swallow traffic to *.adaka.internal
+      - INIT_ALLOWED_IPS=0.0.0.0/0,::/0,{{ADAKA_NETWORK}}
       - PORT=80
     volumes:
       - {{WGEASY_DIR}}:/etc/wireguard:rw

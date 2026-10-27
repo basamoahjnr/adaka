@@ -203,6 +203,12 @@ docker compose -f ~/.adaka/docker-compose.yml up -d
 - WireGuard admin: verify your firewall allows `51821/tcp`
 - `*.adaka.internal` services: connect to the VPN first, and check that your
   device uses the VPN's DNS (`nslookup search.adaka.internal` should return `10.8.1.7`)
+- `*.adaka.internal` resolves but the connection is refused: your local network
+  probably overlaps `10.8.1.0/24` (for example a LAN on `10.0.0.0/8`), so the
+  traffic leaves through Wi-Fi instead of the tunnel. Client configs include
+  `10.8.1.0/24` in `AllowedIPs` to win that route; on installs created before
+  this, add it in the wg-easy admin under *Admin → Config → Allowed IPs*, then
+  re-import each client's config.
 
 ## License
 
