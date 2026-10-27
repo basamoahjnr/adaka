@@ -151,6 +151,7 @@ print_success() {
     echo -e "  ${CYAN}${dns_choice^} DNS${RESET}     http://${GREEN}dns.$ADAKA_LOCAL_DOMAIN/admin${RESET}"
     echo -e "  ${CYAN}SearXNG${RESET}          http://${GREEN}search.$ADAKA_LOCAL_DOMAIN${RESET}"
     echo -e "  ${CYAN}Arcane${RESET}           http://${GREEN}arcane.$ADAKA_LOCAL_DOMAIN${RESET}"
+    echo -e "  ${CYAN}WireGuard VPN${RESET}    http://${GREEN}wg.$ADAKA_LOCAL_DOMAIN${RESET}"
     echo ""
     echo -e "${BOLD}Quick Start:${RESET}"
     echo -e "${DIM}$(printf '─%.0s' {1..40})${RESET}"

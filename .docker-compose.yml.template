@@ -15,6 +15,9 @@ services:
       # 10.0.0.0/8, which would otherwise swallow traffic to *.adaka.internal
       - INIT_ALLOWED_IPS=0.0.0.0/0,::/0,{{ADAKA_NETWORK}}
       - PORT=80
+      # Lets the session cookie work over http://wg.{{ADAKA_LOCAL_DOMAIN}}, which
+      # WireGuard already encrypts; the public route stays HTTPS via Caddy
+      - INSECURE=true
     volumes:
       - {{WGEASY_DIR}}:/etc/wireguard:rw
       - /lib/modules:/lib/modules:ro
