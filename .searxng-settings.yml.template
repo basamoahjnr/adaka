@@ -18,6 +18,12 @@ search:
 ui:
   results_on_new_tab: true
 
+outgoing:
+  # The 3s default drops Startpage, Mojeek and Brave on a busy 1 GB droplet,
+  # so the engine mix (and the results) changed from one search to the next.
+  request_timeout: 5.0
+  max_request_timeout: 8.0
+
 # This block replaces SearXNG's plugin list rather than merging with it, so
 # every plugin is listed. Only infinite_scroll differs from the defaults.
 plugins:
@@ -63,5 +69,8 @@ engines:
     inactive: false
   - name: mojeek
     inactive: false
+  # Bing is left off: it answers datacenter IPs with results localised to the
+  # droplet's city and matched on single words (Anaheim weather, California
+  # DMV), which pushed unrelated links into every results page.
   - name: bing
-    disabled: false
+    disabled: true
